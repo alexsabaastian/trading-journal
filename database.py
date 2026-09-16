@@ -42,7 +42,7 @@ def get_or_create_account(name, firm="", initial_balance=0.0):
     r.raise_for_status()
     data = r.json()
     if data:
-        return data[0]["id"]
+        return int(data[0]["id"])
 
     r = requests.post(
         f"{SUPABASE_URL}/rest/v1/accounts",
@@ -51,7 +51,7 @@ def get_or_create_account(name, firm="", initial_balance=0.0):
         timeout=30,
     )
     r.raise_for_status()
-    return r.json()[0]["id"]
+    return int(r.json()[0]["id"])
 
 
 def load_accounts():
@@ -62,7 +62,10 @@ def load_accounts():
         timeout=30,
     )
     r.raise_for_status()
-    return pd.DataFrame(r.json())
+    df = pd.DataFrame(r.json())
+    if not df.empty:
+        df["id"] = df["id"].astype(int)
+    return df
 
 
 def insert_trades(account_id, trades_df):
@@ -73,7 +76,7 @@ def insert_trades(account_id, trades_df):
         timeout=30,
     )
     r.raise_for_status()
-    existing = {row["position_id"] for row in r.json()}
+    existing = {int(row["position_id"]) for row in r.json()}
 
     new_df = trades_df[~trades_df["Position"].isin(existing)]
     skipped = len(trades_df) - len(new_df)
@@ -81,7 +84,7 @@ def insert_trades(account_id, trades_df):
     inserted = 0
     for _, row in new_df.iterrows():
         payload = {
-            "account_id": account_id,
+            "account_id": int(account_id),
             "position_id": int(row["Position"]),
             "entry_time": str(row["Entry_Time"]),
             "exit_time": str(row["Exit_Time"]),
@@ -121,6 +124,13 @@ def load_all_trades():
 
     if trades.empty:
         return pd.DataFrame()
+
+    # Cast id columns to int (Supabase returns BIGINT as string)
+    trades["account_id"] = trades["account_id"].astype(int)
+    if "id" in trades.columns:
+        trades["id"] = trades["id"].astype(int)
+    if "position_id" in trades.columns:
+        trades["position_id"] = trades["position_id"].astype(int)
 
     accounts = load_accounts()
     merged = trades.merge(
