@@ -715,3 +715,64 @@ def style_trade_log(row):
 
 styled = display_df.style.apply(style_trade_log, axis=1).format({"Profit": "${:.2f}"})
 st.dataframe(styled, use_container_width=True, height=420)
+
+
+# ===============================================================
+# TRADE NOTES
+# ===============================================================
+st.markdown("### 📝 Trade Notes")
+st.caption("Select a trade below and journal your thoughts on it.")
+
+notes_df = filtered.copy()
+notes_df["label"] = notes_df.apply(
+    lambda r: f"#{int(r['position_id'])}  ·  {r['Symbol']}  ·  {r['Exit_Time'].strftime('%b %d %H:%M')}  ·  ${r['Profit']:.2f}",
+    axis=1,
+)
+
+selected_label = st.selectbox(
+    "Select Trade",
+    notes_df["label"].tolist(),
+    key="trade_note_selector",
+)
+selected_trade = notes_df[notes_df["label"] == selected_label].iloc[0]
+
+existing_note = selected_trade.get("note") or ""
+existing_strategy = selected_trade.get("strategy") or ""
+existing_session = selected_trade.get("session") or ""
+
+SESSION_OPTIONS = ["", "Asia", "London", "New York", "London/NY Overlap", "Other"]
+session_index = SESSION_OPTIONS.index(existing_session) if existing_session in SESSION_OPTIONS else 0
+
+col_a, col_b = st.columns([2, 1])
+with col_a:
+    strategy_input = st.text_input(
+        "Strategy / Confluence",
+        value=existing_strategy,
+        placeholder="e.g. London breakout after Asian range compression",
+        key="strategy_input",
+    )
+with col_b:
+    session_input = st.selectbox(
+        "Session",
+        SESSION_OPTIONS,
+        index=session_index,
+        key="session_input",
+    )
+
+note_input = st.text_area(
+    "Notes",
+    value=existing_note,
+    placeholder="Why did you take this trade? How did you feel? What would you do differently?",
+    height=120,
+    key="note_input",
+)
+
+if st.button("💾 Save Note", type="primary"):
+    db.update_trade_notes(
+        int(selected_trade["id"]),
+        note_input,
+        strategy_input,
+        session_input,
+    )
+    st.success("Note saved to Supabase ✅")
+    st.rerun()

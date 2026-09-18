@@ -141,3 +141,21 @@ def load_all_trades():
         how="left",
     )
     return merged
+
+
+def update_trade_notes(trade_id, note, strategy, session):
+    """Save or update the journal notes for a trade."""
+    payload = {
+        "note": note or None,
+        "strategy": strategy or None,
+        "session": session or None,
+    }
+    r = requests.patch(
+        f"{SUPABASE_URL}/rest/v1/trades",
+        headers=_headers("return=minimal"),
+        params={"id": f"eq.{trade_id}"},
+        json=payload,
+        timeout=30,
+    )
+    r.raise_for_status()
+    return True
