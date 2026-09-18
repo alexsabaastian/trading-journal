@@ -6,7 +6,7 @@ from calendar import monthrange
 from parser import parse_mt5_xlsx, calculate_metrics
 import database as db
 
-st.set_page_config(page_title="My Trading Journal", layout="wide")
+st.set_page_config(page_title="Allensdenfx", layout="wide")
 
 db.init_db()
 
@@ -257,7 +257,7 @@ st.markdown(f"""
 # ===============================================================
 # UPLOAD
 # ===============================================================
-st.markdown('<div class="section-title">ðŸ“Š My Trading Journal</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">ðŸ“Š Allensdenfx</div>', unsafe_allow_html=True)
 st.caption("Upload an MT5 trade history report to see your trades and metrics.")
 
 with st.expander("ðŸ“¥ Upload Report", expanded=False):
@@ -799,3 +799,4 @@ st.download_button(
     mime="text/csv",
     key="download_csv",
 )
+
