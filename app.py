@@ -867,14 +867,28 @@ INSTRUCTIONS:
 - Be specific and actionable. Do not be generic.
 """
 
-        try:
-            response = client.models.generate_content(
-                model="gemini-3.6-flash",
-                contents=full_prompt,
-            )
-            answer = response.text
-        except Exception as e:
-            answer = f"Error contacting AI: {e}"
+        import time
+        answer = None
+        for attempt in range(4):
+            try:
+                response = client.models.generate_content(
+                    model="gemini-3.6-flash",
+                    contents=full_prompt,
+                )
+                answer = response.text
+                break
+            except Exception as e:
+                error_str = str(e)
+                if "503" in error_str or "UNAVAILABLE" in error_str:
+                    if attempt < 3:
+                        wait = 2 ** attempt * 2
+                        placeholder.markdown(f"_AI is busy, retrying in {wait}s... (attempt {attempt + 2} of 4)_")
+                        time.sleep(wait)
+                        continue
+                answer = f"Error contacting AI: {e}"
+                break
+        if answer is None:
+            answer = "AI service is temporarily unavailable. Please try again in a moment."
 
         placeholder.markdown(answer)
 
