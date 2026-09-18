@@ -898,3 +898,86 @@ INSTRUCTIONS:
 if st.button("🗑️ Clear chat"):
     st.session_state.ai_chat_history = []
     st.rerun()
+
+
+# ===============================================================
+# AI TRADING COACH
+# ===============================================================
+from google import genai
+
+st.markdown("---")
+st.subheader("AI Trading Coach")
+st.caption("Ask anything about your trades. The AI reads every trade and answers based on your real data.")
+
+try:
+    client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
+except Exception as e:
+    st.error(f"Could not configure AI model. Check GEMINI_API_KEY. Error: {e}")
+    st.stop()
+
+
+ai_data = filtered[[
+    "position_id", "Entry_Time", "Exit_Time", "Symbol", "Type",
+    "Volume", "Entry_Price", "Exit_Price", "Profit", "Hold_Time_Min",
+    "strategy", "session", "note"
+]].copy()
+ai_data["Entry_Time"] = ai_data["Entry_Time"].astype(str)
+ai_data["Exit_Time"] = ai_data["Exit_Time"].astype(str)
+ai_csv = ai_data.to_csv(index=False)
+trade_count = len(ai_data)
+
+
+if "ai_chat_history" not in st.session_state:
+    st.session_state.ai_chat_history = []
+
+
+st.info(f"The AI is reading {trade_count} trades from {selected_account}. Ask it anything.")
+
+
+for message in st.session_state.ai_chat_history:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+
+if prompt := st.chat_input("Ask about your trading..."):
+    st.session_state.ai_chat_history.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
+
+    with st.chat_message("assistant"):
+        placeholder = st.empty()
+        placeholder.markdown("_Analyzing your trades..._")
+
+        full_prompt = f"""
+TRADER'S QUESTION:
+{prompt}
+
+TRADER'S COMPLETE TRADE HISTORY ({trade_count} trades, CSV format):
+{ai_csv}
+
+INSTRUCTIONS:
+- Analyze the actual data above to answer the question.
+- Use specific numbers (win rates, P&L, averages) from the data.
+- If the question asks about patterns, look across multiple trades.
+- If notes are relevant, quote them.
+- If session or strategy columns are filled, use them.
+- Be specific and actionable. Do not be generic.
+"""
+
+        try:
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=full_prompt,
+            )
+            answer = response.text
+        except Exception as e:
+            answer = f"Error contacting AI: {e}"
+
+        placeholder.markdown(answer)
+
+    st.session_state.ai_chat_history.append({"role": "assistant", "content": answer})
+
+
+if st.button("Clear chat"):
+    st.session_state.ai_chat_history = []
+    st.rerun()
