@@ -736,9 +736,9 @@ selected_label = st.selectbox(
 )
 selected_trade = notes_df[notes_df["label"] == selected_label].iloc[0]
 
-existing_note = selected_trade.get("note") or ""
-existing_strategy = selected_trade.get("strategy") or ""
-existing_session = selected_trade.get("session") or ""
+existing_note = (selected_trade["note"] if "note" in selected_trade.index and pd.notna(selected_trade["note"]) else "") or ""
+existing_strategy = (selected_trade["strategy"] if "strategy" in selected_trade.index and pd.notna(selected_trade["strategy"]) else "") or ""
+existing_session = (selected_trade["session"] if "session" in selected_trade.index and pd.notna(selected_trade["session"]) else "") or ""
 
 SESSION_OPTIONS = ["", "Asia", "London", "New York", "London/NY Overlap", "Other"]
 session_index = SESSION_OPTIONS.index(existing_session) if existing_session in SESSION_OPTIONS else 0
@@ -776,3 +776,26 @@ if st.button("💾 Save Note", type="primary"):
     )
     st.success("Note saved to Supabase ✅")
     st.rerun()
+
+
+
+# ===============================================================
+# DOWNLOAD REPORT AS CSV
+# ===============================================================
+export_cols = [
+    "Entry_Time", "Exit_Time", "Symbol", "Type", "Volume",
+    "Entry_Price", "Exit_Price", "Profit", "Hold_Time_Min",
+    "strategy", "session", "note",
+]
+available_cols = [c for c in export_cols if c in filtered.columns]
+export_df = filtered[available_cols].copy()
+
+csv_data = export_df.to_csv(index=False).encode("utf-8")
+
+st.download_button(
+    label="⬇️ Download Report (CSV with Notes)",
+    data=csv_data,
+    file_name=f"{selected_account.replace(' ', '_')}_trades_{pd.Timestamp.now().strftime('%Y-%m-%d')}.csv",
+    mime="text/csv",
+    key="download_csv",
+)
