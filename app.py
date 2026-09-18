@@ -820,9 +820,8 @@ except Exception as e:
 
 
 ai_data = filtered[[
-    "position_id", "Entry_Time", "Exit_Time", "Symbol", "Type",
-    "Volume", "Entry_Price", "Exit_Price", "Profit", "Hold_Time_Min",
-    "strategy", "session", "note"
+    "position_id", "Exit_Time", "Symbol", "Type",
+    "Profit", "Hold_Time_Min", "strategy", "session", "note"
 ]].copy()
 ai_data["Entry_Time"] = ai_data["Entry_Time"].astype(str)
 ai_data["Exit_Time"] = ai_data["Exit_Time"].astype(str)
@@ -869,7 +868,7 @@ INSTRUCTIONS:
 
         import time
         answer = None
-        for attempt in range(4):
+        for attempt in range(3):
             try:
                 response = client.models.generate_content(
                     model="gemini-3.6-flash",
@@ -881,8 +880,8 @@ INSTRUCTIONS:
                 error_str = str(e)
                 if "503" in error_str or "UNAVAILABLE" in error_str:
                     if attempt < 3:
-                        wait = 2 ** attempt * 2
-                        placeholder.markdown(f"_AI is busy, retrying in {wait}s... (attempt {attempt + 2} of 4)_")
+                        wait = attempt + 1
+                        placeholder.markdown(f"_AI is warming up... trying again in {wait}s_")
                         time.sleep(wait)
                         continue
                 answer = f"Error contacting AI: {e}"
