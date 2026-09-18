@@ -823,8 +823,6 @@ ai_data = filtered[[
     "position_id", "Exit_Time", "Symbol", "Type",
     "Profit", "Hold_Time_Min", "strategy", "session", "note"
 ]].copy()
-ai_data["Entry_Time"] = ai_data["Entry_Time"].astype(str)
-ai_data["Exit_Time"] = ai_data["Exit_Time"].astype(str)
 ai_csv = ai_data.to_csv(index=False)
 trade_count = len(ai_data)
 
