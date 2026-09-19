@@ -9,6 +9,169 @@ import database as db
 
 st.set_page_config(page_title="Allensdenfx", layout="wide")
 
+# ===============================================================
+# PREMIUM STYLE
+# ===============================================================
+PREMIUM_STYLE = """
+<style>
+:root {
+    --gold: #d4af37;
+    --gold-bright: #f5c518;
+    --navy-1: #1a1f3a;
+    --navy-2: #0b0e1a;
+    --navy-3: #050710;
+    --glass: rgba(30, 35, 60, 0.50);
+    --glass-border: rgba(212, 175, 55, 0.15);
+}
+
+/* Main background — deep navy to black gradient */
+[data-testid="stAppViewContainer"] {
+    background: radial-gradient(ellipse at top,
+        var(--navy-1) 0%,
+        var(--navy-2) 60%,
+        var(--navy-3) 100%) !important;
+    background-attachment: fixed !important;
+}
+
+/* Sidebar */
+[data-testid="stSidebar"] {
+    background: rgba(12, 15, 28, 0.85) !important;
+    border-right: 1px solid var(--glass-border) !important;
+    backdrop-filter: blur(12px);
+}
+
+/* Main content area transparency */
+[data-testid="stAppViewContainer"] > .main {
+    background: transparent !important;
+}
+
+/* Headers — gold, spaced */
+h1, h2, h3 {
+    color: var(--gold) !important;
+    letter-spacing: 0.03em;
+}
+
+/* Section title divs */
+.section-title {
+    color: var(--gold) !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.05em !important;
+    text-transform: uppercase !important;
+    font-size: 0.9rem !important;
+    margin: 1.2rem 0 0.6rem 0 !important;
+}
+
+/* Metric cards — glass */
+[data-testid="stMetric"] {
+    background: var(--glass) !important;
+    border: 1px solid var(--glass-border) !important;
+    border-radius: 14px !important;
+    padding: 1rem 1.2rem !important;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35) !important;
+}
+
+[data-testid="stMetricValue"] {
+    color: #f0f2f8 !important;
+    text-shadow: 0 0 20px rgba(212, 175, 55, 0.35) !important;
+}
+
+[data-testid="stMetricLabel"] {
+    color: rgba(232, 234, 240, 0.65) !important;
+    letter-spacing: 0.05em !important;
+    text-transform: uppercase !important;
+    font-size: 0.72rem !important;
+}
+
+/* Buttons — gold outline */
+.stButton > button,
+.stFormSubmitButton > button {
+    background: rgba(212, 175, 55, 0.06) !important;
+    border: 1px solid rgba(212, 175, 55, 0.45) !important;
+    color: var(--gold-bright) !important;
+    border-radius: 10px !important;
+    transition: all 0.15s ease !important;
+    font-weight: 500 !important;
+}
+.stButton > button:hover,
+.stFormSubmitButton > button:hover {
+    background: rgba(212, 175, 55, 0.16) !important;
+    border-color: var(--gold-bright) !important;
+    box-shadow: 0 0 18px rgba(212, 175, 55, 0.35) !important;
+    color: #fff !important;
+}
+
+/* Primary buttons — solid gold */
+.stButton > button[kind="primary"],
+.stFormSubmitButton > button[kind="primary"] {
+    background: linear-gradient(135deg, #d4af37, #b8942c) !important;
+    color: #0b0e1a !important;
+    border-color: #d4af37 !important;
+    font-weight: 600 !important;
+}
+.stButton > button[kind="primary"]:hover,
+.stFormSubmitButton > button[kind="primary"]:hover {
+    background: linear-gradient(135deg, #f5c518, #d4af37) !important;
+    box-shadow: 0 0 24px rgba(212, 175, 55, 0.55) !important;
+}
+
+/* Inputs & dropdowns */
+[data-testid="stTextInput"] input,
+[data-testid="stNumberInput"] input,
+[data-testid="stSelectbox"] div[data-baseweb="select"] > div,
+textarea {
+    background: rgba(20, 24, 40, 0.7) !important;
+    border: 1px solid rgba(212, 175, 55, 0.2) !important;
+    border-radius: 10px !important;
+    color: #e8eaf0 !important;
+}
+[data-testid="stTextInput"] input:focus,
+[data-testid="stNumberInput"] input:focus,
+textarea:focus {
+    border-color: var(--gold) !important;
+    box-shadow: 0 0 12px rgba(212, 175, 55, 0.35) !important;
+}
+
+/* Expanders */
+[data-testid="stExpander"] {
+    background: rgba(20, 24, 40, 0.4) !important;
+    border: 1px solid var(--glass-border) !important;
+    border-radius: 12px !important;
+    backdrop-filter: blur(8px);
+}
+
+/* Dataframe / trade log */
+[data-testid="stDataFrame"] {
+    background: rgba(20, 24, 40, 0.4) !important;
+    border: 1px solid var(--glass-border) !important;
+    border-radius: 12px !important;
+    padding: 4px !important;
+}
+
+/* Alerts */
+[data-testid="stAlert"] {
+    background: rgba(20, 24, 40, 0.55) !important;
+    border-radius: 10px !important;
+    backdrop-filter: blur(8px);
+}
+
+/* Divider */
+hr {
+    border-color: rgba(212, 175, 55, 0.15) !important;
+}
+
+/* Links */
+a {
+    color: var(--gold-bright) !important;
+}
+a:hover {
+    text-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+}
+</style>
+"""
+
+st.markdown(PREMIUM_STYLE, unsafe_allow_html=True)
+
 
 # ===============================================================
 # PASSWORD GATE
@@ -212,12 +375,11 @@ with st.sidebar.expander("⚙ Manage All Accounts", expanded=False):
 st.sidebar.markdown("---")
 st.sidebar.header("🎨 Appearance")
 
-theme_name = st.sidebar.radio("Theme", ["Light", "Dark"], horizontal=True)
 accent_name = st.sidebar.selectbox("Accent Color", list(ACCENTS.keys()), index=0)
 calendar_scheme = st.sidebar.selectbox("Calendar Style", list(CALENDAR_SCHEMES.keys()), index=0)
 card_style = st.sidebar.radio("Card Style", ["Filled", "Outlined"], horizontal=True)
 
-theme = THEMES[theme_name]
+theme = THEMES["Dark"]
 accent = ACCENTS[accent_name]
 cal_colors = CALENDAR_SCHEMES[calendar_scheme]
 
@@ -578,11 +740,11 @@ def make_gauge(value, max_value, title, threshold_good):
             "borderwidth": 2,
             "bordercolor": theme['border'],
             "steps": [
-                {"range": [0, threshold_good], "color": "#ffebee" if theme_name == "Light" else "#3a1a1e"},
-                {"range": [threshold_good, max_value], "color": "#e8f5e9" if theme_name == "Light" else "#1a3320"},
+                {"range": [0, threshold_good], "color": "#ffebee" if "Dark" == "Light" else "#3a1a1e"},
+                {"range": [threshold_good, max_value], "color": "#e8f5e9" if "Dark" == "Light" else "#1a3320"},
             ],
             "threshold": {
-                "line": {"color": "#1b5e20" if theme_name == "Light" else "#66bb6a", "width": 3},
+                "line": {"color": "#1b5e20" if "Dark" == "Light" else "#66bb6a", "width": 3},
                 "thickness": 0.75, "value": threshold_good,
             },
         },
@@ -722,7 +884,7 @@ eq_fig.add_trace(go.Scatter(
     x=df_sorted["Exit_Time"], y=df_sorted["Cumulative_PnL"],
     mode="lines", line=dict(color=theme['equity_line'], width=2.5),
     fill="tozeroy",
-    fillcolor=f"rgba(41,98,255,0.10)" if theme_name == "Light" else "rgba(100,181,246,0.15)",
+    fillcolor=f"rgba(41,98,255,0.10)" if "Dark" == "Light" else "rgba(100,181,246,0.15)",
 ))
 eq_fig.update_layout(
     height=320, margin=dict(l=10, r=10, t=10, b=10),
@@ -827,10 +989,10 @@ display_df["Hold_Time_Min"] = display_df["Hold_Time_Min"].round(1)
 def style_trade_log(row):
     pnl = row["Profit"]
     if pnl > 0:
-        bg = "rgba(38,166,154,0.12)" if theme_name == "Light" else "rgba(38,166,154,0.18)"
+        bg = "rgba(38,166,154,0.12)" if "Dark" == "Light" else "rgba(38,166,154,0.18)"
         color = WIN_COLOR
     elif pnl < 0:
-        bg = "rgba(239,83,80,0.12)" if theme_name == "Light" else "rgba(239,83,80,0.18)"
+        bg = "rgba(239,83,80,0.12)" if "Dark" == "Light" else "rgba(239,83,80,0.18)"
         color = LOSS_COLOR
     else:
         bg = theme['card_bg']; color = theme['text']
