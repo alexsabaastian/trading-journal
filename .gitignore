@@ -12,3 +12,10 @@ no-pq.cnf
 make_ps1.py
 migrate.ps1
 database_new.txt
+.streamlit/secrets*.toml
+.streamlit/secrets*.txt
+*.env
+*.env.*
+app.py.bak
+patch_ai.py
+test_models.py

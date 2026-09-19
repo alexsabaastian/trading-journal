@@ -819,6 +819,9 @@ except Exception as e:
     st.stop()
 
 
+GEMINI_MODEL = st.secrets.get("GEMINI_MODEL", "gemini-2.5-flash")
+
+
 ai_data = filtered[[
     "position_id", "Exit_Time", "Symbol", "Type",
     "Profit", "Hold_Time_Min", "strategy", "session", "note"
@@ -866,26 +869,24 @@ INSTRUCTIONS:
 
         import time
         answer = None
-        for attempt in range(3):
+        last_error = None
+        for attempt in range(2):  # initial call + 1 retry = 2 calls max
             try:
                 response = client.models.generate_content(
-                    model="gemini-3.6-flash",
+                    model=GEMINI_MODEL,
                     contents=full_prompt,
                 )
-                answer = response.text
+                answer = (response.text or "").strip() or "_(AI returned an empty response.)_"
                 break
             except Exception as e:
-                error_str = str(e)
-                if "503" in error_str or "UNAVAILABLE" in error_str:
-                    if attempt < 3:
-                        wait = attempt + 1
-                        placeholder.markdown(f"_AI is warming up... trying again in {wait}s_")
-                        time.sleep(wait)
-                        continue
-                answer = f"Error contacting AI: {e}"
+                last_error = str(e)
+                if ("503" in last_error or "UNAVAILABLE" in last_error) and attempt == 0:
+                    placeholder.markdown("_AI is warming up... retrying once in 2s_")
+                    time.sleep(2)
+                    continue
                 break
-        if answer is None:
-            answer = "AI service is temporarily unavailable. Please try again in a moment."
+        if not answer:
+            answer = f"AI error: {last_error}" if last_error else "AI service unavailable. Try again shortly."
 
         placeholder.markdown(answer)
 
