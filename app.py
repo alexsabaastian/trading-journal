@@ -196,10 +196,28 @@ iframe {
     border: 1px solid rgba(38, 166, 154, 0.35) !important;
     color: #a8e6d8 !important;
 }
+
+/* Font scale — controlled by sidebar slider */
+html {
+    font-size: calc(16px * var(--font-scale, 1)) !important;
+}
+[data-testid="stAppViewContainer"] * {
+    --font-scale: 1;
+}
+.stMarkdown, .stText, p, span, label, h1, h2, h3, h4, h5, h6,
+button, input, textarea, .stSelectbox, .stDataFrame {
+    font-size: calc(1em * var(--font-scale, 1)) !important;
+}
 </style>
 """
 
 st.markdown(PREMIUM_STYLE, unsafe_allow_html=True)
+
+_scale = font_scale / 100.0
+st.markdown(
+    f"<style>:root {{ --font-scale: {_scale}; }}</style>",
+    unsafe_allow_html=True,
+)
 
 
 # ===============================================================
@@ -418,6 +436,8 @@ st.sidebar.markdown("---")
 st.sidebar.header("🎨 Appearance")
 
 accent_name = st.sidebar.selectbox("Accent Color", list(ACCENTS.keys()), index=0)
+font_scale = st.sidebar.slider("Text Size", min_value=85, max_value=130, value=100, step=5, format="%d%%")
+
 calendar_scheme = st.sidebar.selectbox("Calendar Style", list(CALENDAR_SCHEMES.keys()), index=0)
 card_style = st.sidebar.radio("Card Style", ["Filled", "Outlined"], horizontal=True)
 
