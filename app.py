@@ -833,10 +833,13 @@ except Exception as e:
 GEMINI_MODEL = st.secrets.get("GEMINI_MODEL", "gemini-2.5-flash")
 
 
-ai_data = filtered[[
+_ai_cols = [
     "position_id", "Exit_Time", "Symbol", "Type",
     "Profit", "Hold_Time_Min", "strategy", "session", "note"
-]].copy()
+]
+if "account_name" in filtered.columns:
+    _ai_cols.insert(1, "account_name")
+ai_data = filtered[_ai_cols].copy()
 ai_csv = ai_data.to_csv(index=False)
 trade_count = len(ai_data)
 
@@ -868,6 +871,9 @@ TRADER'S QUESTION:
 
 TRADER'S COMPLETE TRADE HISTORY ({trade_count} trades, CSV format):
 {ai_csv}
+
+NOTE: Rows are uniquely identified by (account_name, position_id).
+The same position_id may appear in multiple accounts — those are NOT duplicates, they are different trades.
 
 INSTRUCTIONS:
 - Analyze the actual data above to answer the question.
