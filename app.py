@@ -64,15 +64,15 @@ LOSS_COLOR = "#ef5350"
 # ===============================================================
 # SIDEBAR
 # ===============================================================
-st.sidebar.header("âš™ï¸ Settings")
+st.sidebar.header("⚙️ Settings")
 
 accounts_df = db.load_accounts()
 existing_accounts = accounts_df["name"].tolist() if not accounts_df.empty else []
-account_options = ["All Accounts"] + existing_accounts + ["âž• Add new account"]
+account_options = ["All Accounts"] + existing_accounts + ["➕ Add new account"]
 selected_account = st.sidebar.selectbox("Select Account", account_options)
 view_all = selected_account == "All Accounts"
 
-if selected_account == "âž• Add new account":
+if selected_account == "➕ Add new account":
     new_name = st.sidebar.text_input("Account name (e.g., The5ers 10K)")
     new_firm = st.sidebar.text_input("Prop firm (e.g., The5ers)")
     new_balance = st.sidebar.number_input("Initial balance", value=10000.0, step=100.0)
@@ -96,7 +96,7 @@ if st.session_state.get("ai_chat_account") != selected_account:
     st.session_state.ai_chat_account = selected_account
 
 st.sidebar.markdown("---")
-st.sidebar.header("ðŸŽ¨ Appearance")
+st.sidebar.header("🎨 Appearance")
 
 theme_name = st.sidebar.radio("Theme", ["Light", "Dark"], horizontal=True)
 accent_name = st.sidebar.selectbox("Accent Color", list(ACCENTS.keys()), index=0)
@@ -108,7 +108,7 @@ accent = ACCENTS[accent_name]
 cal_colors = CALENDAR_SCHEMES[calendar_scheme]
 
 # ===============================================================
-# GLOBAL CSS â€” FONTS, CARDS, THEME, DROPDOWNS
+# GLOBAL CSS — FONTS, CARDS, THEME, DROPDOWNS
 # ===============================================================
 st.markdown(f"""
 <style>
@@ -265,10 +265,10 @@ st.markdown(f"""
 # ===============================================================
 # UPLOAD
 # ===============================================================
-st.markdown('<div class="section-title">ðŸ“Š Allensdenfx</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">📊 Allensdenfx</div>', unsafe_allow_html=True)
 st.caption("Upload an MT5 trade history report to see your trades and metrics.")
 
-with st.expander("ðŸ“¥ Upload Report", expanded=False):
+with st.expander("📥 Upload Report", expanded=False):
     uploaded = st.file_uploader("Upload your MT5 Trade History Report (.xlsx)", type=["xlsx"], key=f"uploader_{selected_account}")
     if uploaded is not None and account_id is not None:
         try:
@@ -276,11 +276,11 @@ with st.expander("ðŸ“¥ Upload Report", expanded=False):
             df_up = parse_mt5_xlsx(file_bytes)
             inserted, skipped = db.insert_trades(account_id, df_up)
             if inserted:
-                st.success(f"âœ… Imported {inserted} new trades. ({skipped} duplicates skipped)")
+                st.success(f"✅ Imported {inserted} new trades. ({skipped} duplicates skipped)")
             else:
-                st.info(f"â„¹ï¸ No new trades to import. ({skipped} duplicates skipped)")
+                st.info(f"ℹ️ No new trades to import. ({skipped} duplicates skipped)")
         except Exception as e:
-            st.error(f"âŒ Error parsing file: {e}")
+            st.error(f"❌ Error parsing file: {e}")
             st.exception(e)
 
 # ===============================================================
@@ -289,7 +289,7 @@ with st.expander("ðŸ“¥ Upload Report", expanded=False):
 all_trades = db.load_all_trades()
 
 if all_trades.empty or (account_id is None and not view_all):
-    st.info("ðŸ‘† Create an account in the sidebar, then upload your MT5 .xlsx report.")
+    st.info("👆 Create an account in the sidebar, then upload your MT5 .xlsx report.")
     st.stop()
 
 if view_all:
@@ -307,7 +307,7 @@ df["entry_time"] = pd.to_datetime(df["entry_time"], errors="coerce")
 # ===============================================================
 # FILTERS
 # ===============================================================
-st.markdown('<div class="section-title">ðŸ”Ž Filters</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">🔎 Filters</div>', unsafe_allow_html=True)
 col_f1, col_f2, col_f3 = st.columns([1, 1, 2])
 
 with col_f1:
@@ -355,7 +355,7 @@ if type_filter != "All":
     filtered = filtered[filtered["type"] == type_filter]
 
 if filtered.empty:
-    st.warning("âš ï¸ No trades match your filters.")
+    st.warning("⚠️ No trades match your filters.")
     st.stop()
 
 filtered = filtered.rename(columns={
@@ -386,7 +386,7 @@ today_pnl = sum_pnl(filtered, today_start, today_start + timedelta(days=1))
 week_pnl = sum_pnl(filtered, week_start, week_start + timedelta(days=7))
 month_pnl = sum_pnl(filtered, month_start_kpi, (month_start_kpi + timedelta(days=32)).replace(day=1))
 
-st.markdown('<div class="section-title">ðŸ’° P&L Snapshot</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">💰 P&L Snapshot</div>', unsafe_allow_html=True)
 k1, k2, k3 = st.columns(3)
 
 def kpi_html(label, value):
@@ -432,9 +432,9 @@ if not daily_streak.empty:
 st.markdown("<div style='height:14px;'></div>", unsafe_allow_html=True)
 
 if streak_type == "win":
-    streak_html = f'<div class="streak-banner" style="color:{WIN_COLOR};">ðŸ”¥ {streak_count}-day win streak â€” keep going!</div>'
+    streak_html = f'<div class="streak-banner" style="color:{WIN_COLOR};">🔥 {streak_count}-day win streak — keep going!</div>'
 elif streak_type == "loss":
-    streak_html = f'<div class="streak-banner" style="color:{LOSS_COLOR};">â„ï¸ {streak_count}-day loss streak â€” time to review your rules</div>'
+    streak_html = f'<div class="streak-banner" style="color:{LOSS_COLOR};">❄️ {streak_count}-day loss streak — time to review your rules</div>'
 else:
     streak_html = '<div class="streak-banner" style="color:{};">No trading days yet</div>'.format(theme['subtext'])
 
@@ -443,7 +443,7 @@ st.markdown(streak_html, unsafe_allow_html=True)
 # ===============================================================
 # RADIAL GAUGE DASHBOARD
 # ===============================================================
-st.markdown('<div class="section-title">ðŸ“ˆ Performance Summary</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">📈 Performance Summary</div>', unsafe_allow_html=True)
 
 def card_style_css():
     if card_style == "Filled":
@@ -565,7 +565,7 @@ st.markdown(
 # ===============================================================
 # P&L WATERFALL (daily bars)
 # ===============================================================
-st.markdown('<div class="section-title">ðŸ“Š Daily P&L</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">📊 Daily P&L</div>', unsafe_allow_html=True)
 
 waterfall = (
     filtered.assign(day=filtered["Exit_Time"].dt.date)
@@ -599,7 +599,7 @@ st.plotly_chart(fig_wf, use_container_width=True)
 # ===============================================================
 # EQUITY CURVE
 # ===============================================================
-st.markdown('<div class="section-title">ðŸ“‰ Equity Curve</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">📉 Equity Curve</div>', unsafe_allow_html=True)
 df_sorted = filtered.sort_values("Exit_Time").copy()
 df_sorted["Cumulative_PnL"] = df_sorted["Profit"].cumsum()
 
@@ -622,7 +622,7 @@ st.plotly_chart(eq_fig, use_container_width=True)
 # ===============================================================
 # CALENDAR
 # ===============================================================
-st.markdown('<div class="section-title">ðŸ“… Monthly P&L Calendar</div>', unsafe_allow_html=True)
+st.markdown('<div class="section-title">📅 Monthly P&L Calendar</div>', unsafe_allow_html=True)
 
 daily = (filtered.assign(day=filtered["Exit_Time"].dt.date)
          .groupby("day").agg(daily_pnl=("Profit", "sum"), trades=("Profit", "count"))
@@ -661,7 +661,7 @@ for week in range(6):
                 row_hover.append(f"Day {day_num}: ${pnl:.2f} ({cnt} trades)")
             else:
                 row_z.append(0)
-                row_text.append(f"{day_num}<br>â€”")
+                row_text.append(f"{day_num}<br>—")
                 row_hover.append(f"Day {day_num}: no trades")
     z_values.append(row_z); text_values.append(row_text); hover_text.append(row_hover)
 
@@ -693,13 +693,13 @@ if not month_daily.empty:
     total_trades = int(month_daily["trades"].sum())
     green_days = int((month_daily["daily_pnl"] > 0).sum())
     red_days = int((month_daily["daily_pnl"] < 0).sum())
-    st.caption(f"**{selected_month}** â€” Total: **${month_total:.2f}** | "
+    st.caption(f"**{selected_month}** — Total: **${month_total:.2f}** | "
                f"Trades: **{total_trades}** | Green days: **{green_days}** | Red days: **{red_days}**")
 
 # ===============================================================
 # COLORED TRADE LOG
 # ===============================================================
-st.markdown(f'<div class="section-title">ðŸ“‹ Trade Log ({len(filtered)} trades)</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="section-title">📋 Trade Log ({len(filtered)} trades)</div>', unsafe_allow_html=True)
 
 display_df = filtered[[
     "Entry_Time", "Exit_Time", "Symbol", "Type",
