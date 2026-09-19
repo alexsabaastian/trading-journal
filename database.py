@@ -1,4 +1,4 @@
-﻿import os
+import os
 import requests
 import pandas as pd
 
@@ -54,7 +54,7 @@ def get_or_create_account(name, firm="", initial_balance=0.0):
     return int(r.json()[0]["id"])
 
 
-def load_accounts():
+def load_accounts(include_archived=False):
     r = requests.get(
         f"{SUPABASE_URL}/rest/v1/accounts",
         headers=_headers(),
@@ -63,8 +63,14 @@ def load_accounts():
     )
     r.raise_for_status()
     df = pd.DataFrame(r.json())
-    if not df.empty:
-        df["id"] = df["id"].astype(int)
+    if df.empty:
+        return df
+    df["id"] = df["id"].astype(int)
+    if "archived" not in df.columns:
+        df["archived"] = False
+    df["archived"] = df["archived"].apply(lambda v: bool(v) if pd.notna(v) else False)
+    if not include_archived:
+        df = df[~df["archived"]].reset_index(drop=True)
     return df
 
 
@@ -112,7 +118,7 @@ def insert_trades(account_id, trades_df):
     return inserted, skipped
 
 
-def load_all_trades():
+def load_all_trades(active_only=True):
     r = requests.get(
         f"{SUPABASE_URL}/rest/v1/trades",
         headers=_headers(),
@@ -125,21 +131,26 @@ def load_all_trades():
     if trades.empty:
         return pd.DataFrame()
 
-    # Cast id columns to int (Supabase returns BIGINT as string)
     trades["account_id"] = trades["account_id"].astype(int)
     if "id" in trades.columns:
         trades["id"] = trades["id"].astype(int)
     if "position_id" in trades.columns:
         trades["position_id"] = trades["position_id"].astype(int)
 
-    accounts = load_accounts()
+    accounts = load_accounts(include_archived=True)
+    if "archived" not in accounts.columns:
+        accounts["archived"] = False
     merged = trades.merge(
-        accounts[["id", "name", "firm"]].rename(
+        accounts[["id", "name", "firm", "archived"]].rename(
             columns={"id": "account_id", "name": "account_name"}
         ),
         on="account_id",
         how="left",
     )
+    if active_only:
+        merged = merged[~merged["archived"].fillna(False).astype(bool)].reset_index(drop=True)
+    if "archived" in merged.columns:
+        merged = merged.drop(columns=["archived"])
     return merged
 
 
@@ -155,6 +166,37 @@ def update_trade_notes(trade_id, note, strategy, session):
         headers=_headers("return=minimal"),
         params={"id": f"eq.{trade_id}"},
         json=payload,
+        timeout=30,
+    )
+    r.raise_for_status()
+    return True
+
+def set_account_archived(account_id, archived):
+    """Archive or unarchive an account."""
+    r = requests.patch(
+        f"{SUPABASE_URL}/rest/v1/accounts",
+        headers=_headers("return=minimal"),
+        params={"id": f"eq.{account_id}"},
+        json={"archived": bool(archived)},
+        timeout=30,
+    )
+    r.raise_for_status()
+    return True
+
+
+def delete_account(account_id):
+    """Permanently delete an account and all its trades."""
+    r = requests.delete(
+        f"{SUPABASE_URL}/rest/v1/trades",
+        headers=_headers("return=minimal"),
+        params={"account_id": f"eq.{account_id}"},
+        timeout=30,
+    )
+    r.raise_for_status()
+    r = requests.delete(
+        f"{SUPABASE_URL}/rest/v1/accounts",
+        headers=_headers("return=minimal"),
+        params={"id": f"eq.{account_id}"},
         timeout=30,
     )
     r.raise_for_status()

@@ -69,7 +69,15 @@ st.sidebar.header("⚙️ Settings")
 accounts_df = db.load_accounts()
 existing_accounts = accounts_df["name"].tolist() if not accounts_df.empty else []
 account_options = ["All Accounts"] + existing_accounts + ["➕ Add new account"]
-selected_account = st.sidebar.selectbox("Select Account", account_options)
+
+if st.session_state.pop("_pending_switch_to_all", False):
+    st.session_state["_account_dropdown"] = "All Accounts"
+elif st.session_state.get("_account_dropdown") not in account_options:
+    st.session_state["_account_dropdown"] = "All Accounts"
+
+selected_account = st.sidebar.selectbox(
+    "Select Account", account_options, key="_account_dropdown"
+)
 view_all = selected_account == "All Accounts"
 
 if selected_account == "➕ Add new account":
@@ -90,10 +98,83 @@ elif view_all:
 else:
     account_id = int(accounts_df[accounts_df["name"] == selected_account]["id"].iloc[0])
     st.sidebar.success(f"Active: {selected_account}")
+    _a1, _a2 = st.sidebar.columns(2)
+    with _a1:
+        if st.button("📦 Archive", key="arch_active", use_container_width=True):
+            db.set_account_archived(account_id, True)
+            st.session_state["_pending_switch_to_all"] = True
+            st.rerun()
+    with _a2:
+        if st.button("🗑 Delete", key="del_active", use_container_width=True):
+            st.session_state["_confirm_delete_id"] = account_id
+            st.session_state["_confirm_delete_name"] = selected_account
+            st.rerun()
+    if st.session_state.get("_confirm_delete_id") == account_id:
+        st.sidebar.warning(f"Delete **{selected_account}** and all its trades?")
+        _b1, _b2 = st.sidebar.columns(2)
+        with _b1:
+            if st.button("Yes, delete", key="cfm_del_active", type="primary", use_container_width=True):
+                db.delete_account(account_id)
+                st.session_state.pop("_confirm_delete_id", None)
+                st.session_state.pop("_confirm_delete_name", None)
+                st.session_state["_pending_switch_to_all"] = True
+                st.rerun()
+        with _b2:
+            if st.button("Cancel", key="cnl_del_active", use_container_width=True):
+                st.session_state.pop("_confirm_delete_id", None)
+                st.session_state.pop("_confirm_delete_name", None)
+                st.rerun()
 
 if st.session_state.get("ai_chat_account") != selected_account:
     st.session_state.ai_chat_history = []
     st.session_state.ai_chat_account = selected_account
+
+st.sidebar.markdown("---")
+with st.sidebar.expander("⚙ Manage All Accounts", expanded=False):
+    _all_acc = db.load_accounts(include_archived=True)
+    if _all_acc.empty:
+        st.caption("No accounts yet.")
+    else:
+        for _, _row in _all_acc.iterrows():
+            _aid = int(_row["id"])
+            _aname = str(_row["name"])
+            _arch = bool(_row["archived"]) if "archived" in _row.index else False
+            _badge = "📦 Archived" if _arch else "✅ Active"
+            st.markdown(f"**{_aname}** — _{_badge}_")
+            _c1, _c2 = st.columns(2)
+            with _c1:
+                if _arch:
+                    if st.button("Unarchive", key=f"unarch_{_aid}", use_container_width=True):
+                        db.set_account_archived(_aid, False)
+                        st.rerun()
+                else:
+                    if st.button("Archive", key=f"arch_{_aid}", use_container_width=True):
+                        db.set_account_archived(_aid, True)
+                        if selected_account == _aname:
+                            st.session_state["_pending_switch_to_all"] = True
+                        st.rerun()
+            with _c2:
+                if st.button("Delete", key=f"del_{_aid}", use_container_width=True):
+                    st.session_state["_confirm_delete_id"] = _aid
+                    st.session_state["_confirm_delete_name"] = _aname
+                    st.rerun()
+            if st.session_state.get("_confirm_delete_id") == _aid:
+                st.warning(f"Delete **{_aname}** and all its trades?")
+                _d1, _d2 = st.columns(2)
+                with _d1:
+                    if st.button("Confirm", key=f"cfm_{_aid}", type="primary", use_container_width=True):
+                        db.delete_account(_aid)
+                        st.session_state.pop("_confirm_delete_id", None)
+                        st.session_state.pop("_confirm_delete_name", None)
+                        if selected_account == _aname:
+                            st.session_state["_pending_switch_to_all"] = True
+                        st.rerun()
+                with _d2:
+                    if st.button("Cancel", key=f"cnl_{_aid}", use_container_width=True):
+                        st.session_state.pop("_confirm_delete_id", None)
+                        st.session_state.pop("_confirm_delete_name", None)
+                        st.rerun()
+            st.markdown("---")
 
 st.sidebar.markdown("---")
 st.sidebar.header("🎨 Appearance")
