@@ -1,4 +1,4 @@
-﻿import streamlit as st
+import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
@@ -872,9 +872,16 @@ INSTRUCTIONS:
         last_error = None
         for attempt in range(2):  # initial call + 1 retry = 2 calls max
             try:
+                _history = []
+                for _msg in st.session_state.ai_chat_history[:-1]:
+                    _history.append({
+                        "role": "user" if _msg["role"] == "user" else "model",
+                        "parts": [{"text": _msg["content"]}],
+                    })
+                _history.append({"role": "user", "parts": [{"text": full_prompt}]})
                 response = client.models.generate_content(
                     model=GEMINI_MODEL,
-                    contents=full_prompt,
+                    contents=_history,
                 )
                 answer = (response.text or "").strip() or "_(AI returned an empty response.)_"
                 break
