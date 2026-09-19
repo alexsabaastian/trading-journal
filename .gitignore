@@ -19,3 +19,4 @@ database_new.txt
 app.py.bak
 patch_ai.py
 test_models.py
+.streamlit/secrets*
