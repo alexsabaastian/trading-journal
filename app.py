@@ -989,7 +989,7 @@ fig = go.Figure(data=go.Heatmap(
     hoverinfo="text", hovertext=hover_text,
     colorscale=[
         [0.0, cal_colors["neg_dark"]], [0.25, cal_colors["neg_light"]],
-        [0.5, cal_colors["mid"]],
+        [0.5, "#1a1f2e"],
         [0.75, cal_colors["pos_light"]], [1.0, cal_colors["pos_dark"]],
     ],
     zmid=0, zmin=-max_abs, zmax=max_abs, showscale=True, xgap=3, ygap=3,
@@ -1001,8 +1001,8 @@ fig.update_layout(
                side="top", tickfont=dict(size=14, color=theme['text'])),
     yaxis=dict(showticklabels=False, autorange="reversed"),
     margin=dict(l=20, r=20, t=50, b=20),
-    plot_bgcolor=theme['bg'], paper_bgcolor=theme['bg'],
-    font_color=theme['text'],
+    plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+    font_color="#d8dbe5",
 )
 st.plotly_chart(_make_transparent(fig), width='stretch')
 
