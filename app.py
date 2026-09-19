@@ -213,12 +213,6 @@ button, input, textarea, .stSelectbox, .stDataFrame {
 
 st.markdown(PREMIUM_STYLE, unsafe_allow_html=True)
 
-_scale = font_scale / 100.0
-st.markdown(
-    f"<style>:root {{ --font-scale: {_scale}; }}</style>",
-    unsafe_allow_html=True,
-)
-
 
 # ===============================================================
 # PASSWORD GATE
@@ -437,6 +431,11 @@ st.sidebar.header("🎨 Appearance")
 
 accent_name = st.sidebar.selectbox("Accent Color", list(ACCENTS.keys()), index=0)
 font_scale = st.sidebar.slider("Text Size", min_value=85, max_value=130, value=100, step=5, format="%d%%")
+_scale = font_scale / 100.0
+st.markdown(
+    f"<style>:root {{ --font-scale: {_scale}; }}</style>",
+    unsafe_allow_html=True,
+)
 
 calendar_scheme = st.sidebar.selectbox("Calendar Style", list(CALENDAR_SCHEMES.keys()), index=0)
 card_style = st.sidebar.radio("Card Style", ["Filled", "Outlined"], horizontal=True)
