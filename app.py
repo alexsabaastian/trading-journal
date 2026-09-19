@@ -29,7 +29,7 @@ def _password_gate():
         st.caption("Enter your password to open the journal.")
         with st.form("_login_form", clear_on_submit=False):
             pw = st.text_input("Password", type="password", key="_pw_input")
-            submitted = st.form_submit_button("Unlock", type="primary", use_container_width=True)
+            submitted = st.form_submit_button("Unlock", type="primary", width='stretch')
         if submitted:
             if hmac.compare_digest(pw or "", expected):
                 st.session_state["_authed"] = True
@@ -133,12 +133,12 @@ else:
     st.sidebar.success(f"Active: {selected_account}")
     _a1, _a2 = st.sidebar.columns(2)
     with _a1:
-        if st.button("📦 Archive", key="arch_active", use_container_width=True):
+        if st.button("📦 Archive", key="arch_active", width='stretch'):
             db.set_account_archived(account_id, True)
             st.session_state["_pending_switch_to_all"] = True
             st.rerun()
     with _a2:
-        if st.button("🗑 Delete", key="del_active", use_container_width=True):
+        if st.button("🗑 Delete", key="del_active", width='stretch'):
             st.session_state["_confirm_delete_id"] = account_id
             st.session_state["_confirm_delete_name"] = selected_account
             st.rerun()
@@ -146,14 +146,14 @@ else:
         st.sidebar.warning(f"Delete **{selected_account}** and all its trades?")
         _b1, _b2 = st.sidebar.columns(2)
         with _b1:
-            if st.button("Yes, delete", key="cfm_del_active", type="primary", use_container_width=True):
+            if st.button("Yes, delete", key="cfm_del_active", type="primary", width='stretch'):
                 db.delete_account(account_id)
                 st.session_state.pop("_confirm_delete_id", None)
                 st.session_state.pop("_confirm_delete_name", None)
                 st.session_state["_pending_switch_to_all"] = True
                 st.rerun()
         with _b2:
-            if st.button("Cancel", key="cnl_del_active", use_container_width=True):
+            if st.button("Cancel", key="cnl_del_active", width='stretch'):
                 st.session_state.pop("_confirm_delete_id", None)
                 st.session_state.pop("_confirm_delete_name", None)
                 st.rerun()
@@ -177,17 +177,17 @@ with st.sidebar.expander("⚙ Manage All Accounts", expanded=False):
             _c1, _c2 = st.columns(2)
             with _c1:
                 if _arch:
-                    if st.button("Unarchive", key=f"unarch_{_aid}", use_container_width=True):
+                    if st.button("Unarchive", key=f"unarch_{_aid}", width='stretch'):
                         db.set_account_archived(_aid, False)
                         st.rerun()
                 else:
-                    if st.button("Archive", key=f"arch_{_aid}", use_container_width=True):
+                    if st.button("Archive", key=f"arch_{_aid}", width='stretch'):
                         db.set_account_archived(_aid, True)
                         if selected_account == _aname:
                             st.session_state["_pending_switch_to_all"] = True
                         st.rerun()
             with _c2:
-                if st.button("Delete", key=f"del_{_aid}", use_container_width=True):
+                if st.button("Delete", key=f"del_{_aid}", width='stretch'):
                     st.session_state["_confirm_delete_id"] = _aid
                     st.session_state["_confirm_delete_name"] = _aname
                     st.rerun()
@@ -195,7 +195,7 @@ with st.sidebar.expander("⚙ Manage All Accounts", expanded=False):
                 st.warning(f"Delete **{_aname}** and all its trades?")
                 _d1, _d2 = st.columns(2)
                 with _d1:
-                    if st.button("Confirm", key=f"cfm_{_aid}", type="primary", use_container_width=True):
+                    if st.button("Confirm", key=f"cfm_{_aid}", type="primary", width='stretch'):
                         db.delete_account(_aid)
                         st.session_state.pop("_confirm_delete_id", None)
                         st.session_state.pop("_confirm_delete_name", None)
@@ -203,7 +203,7 @@ with st.sidebar.expander("⚙ Manage All Accounts", expanded=False):
                             st.session_state["_pending_switch_to_all"] = True
                         st.rerun()
                 with _d2:
-                    if st.button("Cancel", key=f"cnl_{_aid}", use_container_width=True):
+                    if st.button("Cancel", key=f"cnl_{_aid}", width='stretch'):
                         st.session_state.pop("_confirm_delete_id", None)
                         st.session_state.pop("_confirm_delete_name", None)
                         st.rerun()
@@ -612,11 +612,11 @@ def make_win_rate_donut(win_rate):
 c1, c2, c3, c4 = st.columns(4)
 
 with c1:
-    st.plotly_chart(make_win_rate_donut(metrics["win_rate"]), use_container_width=True)
+    st.plotly_chart(make_win_rate_donut(metrics["win_rate"]), width='stretch')
 
 with c2:
     pf = min(metrics["profit_factor"], 3)
-    st.plotly_chart(make_gauge(pf, 3, "Profit Factor", 1.5), use_container_width=True)
+    st.plotly_chart(make_gauge(pf, 3, "Profit Factor", 1.5), width='stretch')
 
 with c3:
     net = metrics["net_profit"]
@@ -708,7 +708,7 @@ fig_wf.update_layout(
     yaxis=dict(gridcolor=theme['border'], title="P&L ($)"),
     bargap=0.35,
 )
-st.plotly_chart(fig_wf, use_container_width=True)
+st.plotly_chart(fig_wf, width='stretch')
 
 # ===============================================================
 # EQUITY CURVE
@@ -731,7 +731,7 @@ eq_fig.update_layout(
     xaxis=dict(gridcolor=theme['border']),
     yaxis=dict(gridcolor=theme['border']),
 )
-st.plotly_chart(eq_fig, use_container_width=True)
+st.plotly_chart(eq_fig, width='stretch')
 
 # ===============================================================
 # CALENDAR
@@ -800,7 +800,7 @@ fig.update_layout(
     plot_bgcolor=theme['bg'], paper_bgcolor=theme['bg'],
     font_color=theme['text'],
 )
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width='stretch')
 
 if not month_daily.empty:
     month_total = month_daily["daily_pnl"].sum()
@@ -839,7 +839,7 @@ def style_trade_log(row):
             for col in row.index]
 
 styled = display_df.style.apply(style_trade_log, axis=1).format({"Profit": "${:.2f}"})
-st.dataframe(styled, use_container_width=True, height=420)
+st.dataframe(styled, width='stretch', height=420)
 
 
 # ===============================================================
