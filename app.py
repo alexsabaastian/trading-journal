@@ -1,3 +1,4 @@
+import hmac
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
@@ -7,6 +8,38 @@ from parser import parse_mt5_xlsx, calculate_metrics
 import database as db
 
 st.set_page_config(page_title="Allensdenfx", layout="wide")
+
+
+# ===============================================================
+# PASSWORD GATE
+# ===============================================================
+def _password_gate():
+    expected = st.secrets.get("APP_PASSWORD")
+    if not expected:
+        st.error("APP_PASSWORD is not set in secrets. Add it to .streamlit/secrets.toml (local) and Streamlit Cloud → Settings → Secrets.")
+        st.stop()
+
+    if st.session_state.get("_authed"):
+        return
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    _, mid, _ = st.columns([1, 2, 1])
+    with mid:
+        st.markdown("## 🔒 Allensdenfx")
+        st.caption("Enter your password to open the journal.")
+        with st.form("_login_form", clear_on_submit=False):
+            pw = st.text_input("Password", type="password", key="_pw_input")
+            submitted = st.form_submit_button("Unlock", type="primary", use_container_width=True)
+        if submitted:
+            if hmac.compare_digest(pw or "", expected):
+                st.session_state["_authed"] = True
+                st.rerun()
+            else:
+                st.error("Password incorrect.")
+    st.stop()
+
+
+_password_gate()
 
 db.init_db()
 
