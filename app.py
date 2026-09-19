@@ -167,6 +167,35 @@ a {
 a:hover {
     text-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
 }
+
+/* Calendar empty cells / dataframe canvas background */
+[data-testid="stDataFrame"] canvas {
+    background: rgba(20, 24, 40, 0.4) !important;
+}
+
+/* iframe charts blend */
+iframe {
+    background: transparent !important;
+}
+
+/* Global text color, brighter for readability */
+[data-testid="stAppViewContainer"] p,
+[data-testid="stAppViewContainer"] span,
+[data-testid="stAppViewContainer"] label {
+    color: #d8dbe5 !important;
+}
+
+/* Captions a bit dimmer */
+[data-testid="stCaptionContainer"] {
+    color: rgba(200, 204, 216, 0.7) !important;
+}
+
+/* Sidebar success banner — subtle dark teal glass */
+[data-testid="stSidebar"] [data-testid="stAlert"] {
+    background: rgba(38, 166, 154, 0.12) !important;
+    border: 1px solid rgba(38, 166, 154, 0.35) !important;
+    color: #a8e6d8 !important;
+}
 </style>
 """
 
@@ -205,6 +234,19 @@ def _password_gate():
 _password_gate()
 
 db.init_db()
+
+
+
+def _make_transparent(fig):
+    """Force transparent backgrounds so charts sit on glass cards."""
+    fig.update_layout(
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(color="#c8ccd8"),
+        xaxis=dict(gridcolor="rgba(212,175,55,0.08)", zerolinecolor="rgba(212,175,55,0.15)"),
+        yaxis=dict(gridcolor="rgba(212,175,55,0.08)", zerolinecolor="rgba(212,175,55,0.15)"),
+    )
+    return fig
 
 # ===============================================================
 # THEME SYSTEM
@@ -774,11 +816,11 @@ def make_win_rate_donut(win_rate):
 c1, c2, c3, c4 = st.columns(4)
 
 with c1:
-    st.plotly_chart(make_win_rate_donut(metrics["win_rate"]), width='stretch')
+    st.plotly_chart(_make_transparent(make_win_rate_donut(metrics["win_rate"])), width='stretch')
 
 with c2:
     pf = min(metrics["profit_factor"], 3)
-    st.plotly_chart(make_gauge(pf, 3, "Profit Factor", 1.5), width='stretch')
+    st.plotly_chart(_make_transparent(make_gauge(pf, 3, "Profit Factor", 1.5)), width='stretch')
 
 with c3:
     net = metrics["net_profit"]
@@ -870,7 +912,7 @@ fig_wf.update_layout(
     yaxis=dict(gridcolor=theme['border'], title="P&L ($)"),
     bargap=0.35,
 )
-st.plotly_chart(fig_wf, width='stretch')
+st.plotly_chart(_make_transparent(fig_wf), width='stretch')
 
 # ===============================================================
 # EQUITY CURVE
@@ -893,7 +935,7 @@ eq_fig.update_layout(
     xaxis=dict(gridcolor=theme['border']),
     yaxis=dict(gridcolor=theme['border']),
 )
-st.plotly_chart(eq_fig, width='stretch')
+st.plotly_chart(_make_transparent(eq_fig), width='stretch')
 
 # ===============================================================
 # CALENDAR
@@ -962,7 +1004,7 @@ fig.update_layout(
     plot_bgcolor=theme['bg'], paper_bgcolor=theme['bg'],
     font_color=theme['text'],
 )
-st.plotly_chart(fig, width='stretch')
+st.plotly_chart(_make_transparent(fig), width='stretch')
 
 if not month_daily.empty:
     month_total = month_daily["daily_pnl"].sum()
