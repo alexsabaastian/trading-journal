@@ -68,8 +68,9 @@ st.sidebar.header("âš™ï¸ Settings")
 
 accounts_df = db.load_accounts()
 existing_accounts = accounts_df["name"].tolist() if not accounts_df.empty else []
-account_options = existing_accounts + ["âž• Add new account"]
+account_options = ["All Accounts"] + existing_accounts + ["âž• Add new account"]
 selected_account = st.sidebar.selectbox("Select Account", account_options)
+view_all = selected_account == "All Accounts"
 
 if selected_account == "âž• Add new account":
     new_name = st.sidebar.text_input("Account name (e.g., The5ers 10K)")
@@ -83,9 +84,16 @@ if selected_account == "âž• Add new account":
         else:
             st.sidebar.error("Enter an account name.")
     account_id = None
+elif view_all:
+    account_id = None
+    st.sidebar.success("Active: All Accounts (combined)")
 else:
     account_id = int(accounts_df[accounts_df["name"] == selected_account]["id"].iloc[0])
     st.sidebar.success(f"Active: {selected_account}")
+
+if st.session_state.get("ai_chat_account") != selected_account:
+    st.session_state.ai_chat_history = []
+    st.session_state.ai_chat_account = selected_account
 
 st.sidebar.markdown("---")
 st.sidebar.header("ðŸŽ¨ Appearance")
@@ -280,11 +288,14 @@ with st.expander("ðŸ“¥ Upload Report", expanded=False):
 # ===============================================================
 all_trades = db.load_all_trades()
 
-if all_trades.empty or account_id is None:
+if all_trades.empty or (account_id is None and not view_all):
     st.info("ðŸ‘† Create an account in the sidebar, then upload your MT5 .xlsx report.")
     st.stop()
 
-df = all_trades[all_trades["account_id"] == account_id].copy()
+if view_all:
+    df = all_trades.copy()
+else:
+    df = all_trades[all_trades["account_id"] == account_id].copy()
 
 if df.empty:
     st.info(f"No trades yet for '{selected_account}'. Upload a report above.")
