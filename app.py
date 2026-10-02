@@ -1012,7 +1012,7 @@ st.markdown(
 st.markdown('<div class="section-title">R-MULTIPLE</div>', unsafe_allow_html=True)
 
 # R_DEBUG_BLOCK (temporary — remove once R-Multiple is fixed)
-with st.expander("🔍 R-MULTIPLE DEBUG", expanded=True):
+with st.expander("🔍 R-MULTIPLE DEBUG", expanded=False):
     st.write("**All columns in `filtered`:**")
     st.code(", ".join(str(c) for c in filtered.columns))
     st.write(f"**Row count:** {len(filtered)}")
@@ -1030,11 +1030,18 @@ with st.expander("🔍 R-MULTIPLE DEBUG", expanded=True):
         st.code(filtered[_c].head(5).to_string())
 
 
+def _lookup_sl(row):
+    """Find the SL column regardless of case."""
+    for k in ("SL", "sl", "S_L", "s_l"):
+        if k in row.index:
+            return row[k]
+    return None
+
 def _r_mult(row):
     try:
         entry = float(row["Entry_Price"])
-        sl_raw = row["SL"]
-        if pd.isna(sl_raw) or float(sl_raw) == 0:
+        sl_raw = _lookup_sl(row)
+        if sl_raw is None or pd.isna(sl_raw) or float(sl_raw) == 0:
             return None
         sl = float(sl_raw)
         vol = float(row["Volume"])
