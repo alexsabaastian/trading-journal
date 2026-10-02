@@ -744,6 +744,57 @@ with k3:
     st.markdown(kpi_html("This Month", month_pnl), unsafe_allow_html=True)
 
 # ===============================================================
+# LONG vs SHORT
+# ===============================================================
+st.markdown('<div class="section-title">LONG vs SHORT</div>', unsafe_allow_html=True)
+
+_type_col = "Type" if "Type" in filtered.columns else "type"
+_long_df = filtered[filtered[_type_col].astype(str).str.lower() == "buy"]
+_short_df = filtered[filtered[_type_col].astype(str).str.lower() == "sell"]
+
+def _side_stats(side_df):
+    if side_df.empty:
+        return {"count": 0, "wr": 0.0, "pnl": 0.0}
+    n = len(side_df)
+    wins = int((side_df["Profit"] > 0).sum())
+    wr = wins / n * 100.0
+    pnl = float(side_df["Profit"].sum())
+    return {"count": n, "wr": wr, "pnl": pnl}
+
+_L = _side_stats(_long_df)
+_S = _side_stats(_short_df)
+
+ls1, ls2 = st.columns(2)
+
+def _side_panel(label, stats, accent_color):
+    pnl_color = WIN_COLOR if stats["pnl"] >= 0 else LOSS_COLOR
+    sign = "+" if stats["pnl"] >= 0 else ""
+    return f"""
+    <div style="{card_style_css()}border-radius:16px;padding:18px;">
+        <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;
+                    letter-spacing:1px;margin-bottom:12px;">{label}</div>
+        <div style="display:flex;justify-content:space-between;gap:12px;">
+            <div style="text-align:center;flex:1;">
+                <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Trades</div>
+                <div style="font-size:22px;font-weight:700;color:{accent_color};">{stats['count']}</div>
+            </div>
+            <div style="text-align:center;flex:1;">
+                <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Win Rate</div>
+                <div style="font-size:22px;font-weight:700;color:{accent_color};">{stats['wr']:.1f}%</div>
+            </div>
+            <div style="text-align:center;flex:1;">
+                <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Net P&L</div>
+                <div style="font-size:22px;font-weight:700;color:{pnl_color};">{sign}${stats['pnl']:.2f}</div>
+            </div>
+        </div>
+    </div>"""
+
+with ls1:
+    st.markdown(_side_panel("LONG (Buy)", _L, WIN_COLOR), unsafe_allow_html=True)
+with ls2:
+    st.markdown(_side_panel("SHORT (Sell)", _S, LOSS_COLOR), unsafe_allow_html=True)
+
+# ===============================================================
 # STREAK TRACKER
 # ===============================================================
 daily_streak = (
