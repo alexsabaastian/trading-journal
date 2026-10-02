@@ -1007,6 +1007,87 @@ st.markdown(
     </div>""", unsafe_allow_html=True)
 
 # ===============================================================
+# R-MULTIPLE
+# ===============================================================
+st.markdown('<div class="section-title">R-MULTIPLE</div>', unsafe_allow_html=True)
+
+def _r_mult(row):
+    try:
+        entry = float(row["Entry_Price"])
+        sl_raw = row["SL"]
+        if pd.isna(sl_raw) or float(sl_raw) == 0:
+            return None
+        sl = float(sl_raw)
+        vol = float(row["Volume"])
+        profit = float(row["Profit"])
+        if entry == 0 or vol == 0:
+            return None
+        risk = abs(entry - sl) * vol * 100
+        if risk <= 0:
+            return None
+        return profit / risk
+    except (TypeError, ValueError, KeyError):
+        return None
+
+_r_df = filtered.copy()
+_r_df["r_mult"] = _r_df.apply(_r_mult, axis=1)
+_r_valid = _r_df[_r_df["r_mult"].notna()].copy()
+
+if _r_valid.empty:
+    st.caption("No R-Multiple data yet. Trades need a Stop Loss value to compute R.")
+else:
+    _wins_r = _r_valid[_r_valid["r_mult"] > 0]["r_mult"]
+    _loss_r = _r_valid[_r_valid["r_mult"] < 0]["r_mult"]
+    _avg_win_r = float(_wins_r.mean()) if not _wins_r.empty else 0.0
+    _avg_loss_r = float(_loss_r.mean()) if not _loss_r.empty else 0.0
+    _best_r = float(_r_valid["r_mult"].max())
+    _worst_r = float(_r_valid["r_mult"].min())
+    _n = len(_r_valid)
+    _p_win = len(_wins_r) / _n if _n else 0.0
+    _p_loss = len(_loss_r) / _n if _n else 0.0
+    _expectancy = _p_win * _avg_win_r + _p_loss * _avg_loss_r
+
+    r1, r2, r3, r4 = st.columns(4)
+
+    def _r_card(label, value):
+        color = WIN_COLOR if value >= 0 else LOSS_COLOR
+        sign = "+" if value >= 0 else ""
+        return f"""
+        <div style="background:rgba(30,35,60,0.5);border:1px solid rgba(212,175,55,0.15);backdrop-filter:blur(12px);border-radius:16px;padding:18px;text-align:center;">
+            <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">{label}</div>
+            <div style="font-size:28px;font-weight:800;color:{color};letter-spacing:-0.5px;">{sign}{value:.2f}R</div>
+        </div>"""
+
+    with r1:
+        st.markdown(_r_card("Avg Win", _avg_win_r), unsafe_allow_html=True)
+    with r2:
+        st.markdown(_r_card("Avg Loss", _avg_loss_r), unsafe_allow_html=True)
+    with r3:
+        st.markdown(_r_card("Best", _best_r), unsafe_allow_html=True)
+    with r4:
+        st.markdown(_r_card("Worst", _worst_r), unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    _exp_color = WIN_COLOR if _expectancy >= 0 else LOSS_COLOR
+    _exp_sign = "+" if _expectancy >= 0 else ""
+    if _expectancy > 0.3:
+        _verdict = "Strong positive expectancy — repeatable edge"
+    elif _expectancy > 0.1:
+        _verdict = "Positive expectancy — good but improvable"
+    elif _expectancy > 0:
+        _verdict = "Marginal edge — one bad session can wipe it"
+    else:
+        _verdict = "Negative expectancy — system loses money over time"
+
+    st.markdown(f"""
+    <div style="background:rgba(30,35,60,0.5);border:1px solid rgba(212,175,55,0.15);backdrop-filter:blur(12px);border-radius:16px;padding:18px;">
+        <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;text-align:center;">Expectancy per Trade</div>
+        <div style="font-size:36px;font-weight:800;color:{_exp_color};text-align:center;letter-spacing:-0.5px;">{_exp_sign}{_expectancy:.2f}R</div>
+        <div style="font-size:13px;color:{theme['subtext']};text-align:center;margin-top:6px;">Based on {_n} trades with SL · {_verdict}</div>
+    </div>""", unsafe_allow_html=True)
+
+# ===============================================================
 # P&L WATERFALL (daily bars)
 # ===============================================================
 st.markdown('<div class="section-title">📊 Daily P&L</div>', unsafe_allow_html=True)
