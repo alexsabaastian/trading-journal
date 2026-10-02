@@ -79,7 +79,7 @@ def insert_trades(account_id, trades_df):
     r = requests.get(
         f"{SUPABASE_URL}/rest/v1/trades",
         headers=_headers(),
-        params={"account_id": f"eq.{account_id}", "select": "position_id,exit_reason"},
+        params={"account_id": f"eq.{account_id}", "select": "position_id,exit_reason,sl,tp"},
         timeout=30,
     )
     r.raise_for_status()
@@ -88,7 +88,7 @@ def insert_trades(account_id, trades_df):
     needs_backfill = {
         int(row["position_id"])
         for row in existing_rows
-        if not row.get("exit_reason")
+        if (not row.get("exit_reason")) or (row.get("sl") is None)
     }
 
     new_df = trades_df[~trades_df["Position"].isin(existing_ids)]
@@ -129,25 +129,38 @@ def insert_trades(account_id, trades_df):
         if resp.status_code < 400:
             inserted += 1
 
-    # Backfill existing trades missing exit_reason
+    # Backfill existing trades missing exit_reason, sl, tp
+    backfilled_sl = 0
     for _, row in trades_df.iterrows():
         pid = int(row["Position"])
         if pid not in needs_backfill:
             continue
-        if "Exit_Reason" not in row.index:
+
+        patch = {}
+        if "Exit_Reason" in row.index:
+            reason = row["Exit_Reason"]
+            if not pd.isna(reason) and reason:
+                patch["exit_reason"] = str(reason)
+
+        if "SL" in row.index and pd.notna(row["SL"]) and float(row["SL"]) != 0:
+            patch["sl"] = float(row["SL"])
+        if "TP" in row.index and pd.notna(row["TP"]) and float(row["TP"]) != 0:
+            patch["tp"] = float(row["TP"])
+
+        if not patch:
             continue
-        reason = row["Exit_Reason"]
-        if pd.isna(reason) or not reason:
-            continue
+
         resp = requests.patch(
             f"{SUPABASE_URL}/rest/v1/trades",
             headers=_headers("return=minimal"),
             params={"account_id": f"eq.{account_id}", "position_id": f"eq.{pid}"},
-            json={"exit_reason": str(reason)},
+            json=patch,
             timeout=30,
         )
         if resp.status_code < 400:
             backfilled += 1
+            if "sl" in patch:
+                backfilled_sl += 1
 
     return inserted, skipped, backfilled
 
