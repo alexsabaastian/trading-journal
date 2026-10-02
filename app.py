@@ -167,6 +167,55 @@ a {
 a:hover {
     text-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
 }
+/* Metric tooltip — hover or focus */
+.metric-help {
+    display: inline-block;
+    width: 15px;
+    height: 15px;
+    line-height: 15px;
+    text-align: center;
+    border-radius: 50%;
+    background: rgba(212, 175, 55, 0.18);
+    color: #d4af37;
+    font-size: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    position: relative;
+    margin-left: 6px;
+    vertical-align: middle;
+    user-select: none;
+    outline: none;
+}
+.metric-help::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: 160%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1a1f3a;
+    color: #e8eaf0;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(212, 175, 55, 0.35);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.45;
+    letter-spacing: normal;
+    text-transform: none;
+    width: 260px;
+    text-align: left;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+    z-index: 9999;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+    white-space: normal;
+}
+.metric-help:hover::after,
+.metric-help:focus::after {
+    opacity: 1;
+}
+
 
 /* Calendar empty cells / dataframe canvas background */
 [data-testid="stDataFrame"] canvas {
@@ -212,6 +261,43 @@ button, input, textarea, .stSelectbox, .stDataFrame {
 """
 
 st.markdown(PREMIUM_STYLE, unsafe_allow_html=True)
+
+
+# ===============================================================
+# METRIC TOOLTIPS
+# ===============================================================
+_METRIC_HELP = {
+    "avg win": "Average R-multiple on your winning trades. Above +1.5R means you're letting winners run. Below +1.0R means you're cutting them early.",
+    "avg loss": "Average R-multiple on losing trades. Around -1.00R is ideal — it means you always respect your stop. Worse than -1.5R suggests overriding stops.",
+    "best": "The single best R-multiple you've achieved on any trade.",
+    "worst": "The single worst R-multiple you've suffered. If worse than -1.5R, you may be letting losers run.",
+    "long (buy)": "Performance on buy (long) trades. Compare with shorts to find your directional edge.",
+    "short (sell)": "Performance on sell (short) trades. If this beats longs, consider trading short-biased.",
+    "tp hits": "Trades that reached your Take Profit target. By definition, always winners.",
+    "sl hits": "Trades that hit your Stop Loss. By definition, always losses.",
+    "manual close": "Trades you closed by hand before TP or SL. High win rate here means discretionary exits are your edge.",
+    "manual": "Trades you closed by hand before hitting TP or SL.",
+    "tp": "Trades that hit Take Profit.",
+    "sl": "Trades stopped out at Stop Loss.",
+    "r by direction · long (buy)": "Average R-multiple on all long trades, with trade count and win rate.",
+    "r by direction · short (sell)": "Average R-multiple on all short trades.",
+    "today": "Net P&L for today only.",
+    "this week": "Net P&L for the current calendar week (Mon–Sun).",
+    "this month": "Net P&L for the current calendar month.",
+    "net p&l": "Total profit and loss across all filtered trades.",
+    "win rate": "Percentage of trades that ended in profit.",
+    "profit factor": "Gross profit ÷ gross loss. Above 1.0 is profitable. Above 1.5 is solid. Above 2.0 is excellent.",
+    "total trades": "Total number of trades in the current view.",
+    "expectancy per trade": "Average R-multiple gained per trade. Positive = repeatable edge. This is the single best predictor of long-term success.",
+}
+
+def _h(label):
+    """Return a tooltip ? icon if an explanation exists for the label."""
+    tip = _METRIC_HELP.get(str(label).strip().lower())
+    if not tip:
+        return ""
+    safe = tip.replace('"', "&quot;")
+    return f' <span class="metric-help" tabindex="0" data-tip="{safe}">?</span>'
 
 
 # ===============================================================
@@ -731,7 +817,7 @@ def kpi_html(label, value):
     sign = "+" if value >= 0 else ""
     return f"""
     <div class="kpi-card">
-        <div class="kpi-label">{label}</div>
+        <div class="kpi-label">{label}{_h(label)}</div>
         <div class="kpi-value" style="color:{color};">{sign}${value:.2f}</div>
     </div>
     """
@@ -772,7 +858,7 @@ def _side_panel(label, stats, accent_color):
     return f"""
     <div style="background:rgba(30,35,60,0.5);border:1px solid rgba(212,175,55,0.15);backdrop-filter:blur(12px);border-radius:16px;padding:18px;">
         <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;
-                    letter-spacing:1px;margin-bottom:12px;">{label}</div>
+                    letter-spacing:1px;margin-bottom:12px;">{label}{_h(label)}</div>
         <div style="display:flex;justify-content:space-between;gap:12px;">
             <div style="text-align:center;flex:1;">
                 <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Trades</div>
@@ -824,7 +910,7 @@ if "exit_reason" in filtered.columns and filtered["exit_reason"].notna().any():
         return f"""
         <div style="background:rgba(30,35,60,0.5);border:1px solid rgba(212,175,55,0.15);backdrop-filter:blur(12px);border-radius:16px;padding:18px;">
             <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;
-                        letter-spacing:1px;margin-bottom:12px;">{label}</div>
+                        letter-spacing:1px;margin-bottom:12px;">{label}{_h(label)}</div>
             <div style="display:flex;justify-content:space-between;gap:8px;">
                 <div style="text-align:center;flex:1;">
                     <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Trades</div>
@@ -1068,7 +1154,7 @@ else:
         sign = "+" if value >= 0 else ""
         return f"""
         <div style="background:rgba(30,35,60,0.5);border:1px solid rgba(212,175,55,0.15);backdrop-filter:blur(12px);border-radius:16px;padding:18px;text-align:center;">
-            <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">{label}</div>
+            <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">{label}{_h(label)}</div>
             <div style="font-size:28px;font-weight:800;color:{color};letter-spacing:-0.5px;">{sign}{value:.2f}R</div>
         </div>"""
 
@@ -1117,7 +1203,7 @@ if not _r_break.empty:
         wr = (wins / total * 100) if total else 0
         return f"""
         <div style="background:rgba(30,35,60,0.5);border:1px solid rgba(212,175,55,0.15);backdrop-filter:blur(12px);border-radius:16px;padding:18px;">
-            <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">{label}</div>
+            <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">{label}{_h(label)}</div>
             <div style="display:flex;justify-content:space-around;gap:8px;">
                 <div style="text-align:center;flex:1;">
                     <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Avg R</div>
