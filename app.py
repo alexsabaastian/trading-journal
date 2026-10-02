@@ -1011,25 +1011,6 @@ st.markdown(
 # ===============================================================
 st.markdown('<div class="section-title">R-MULTIPLE</div>', unsafe_allow_html=True)
 
-# R_DEBUG_BLOCK (temporary — remove once R-Multiple is fixed)
-with st.expander("🔍 R-MULTIPLE DEBUG", expanded=False):
-    st.write("**All columns in `filtered`:**")
-    st.code(", ".join(str(c) for c in filtered.columns))
-    st.write(f"**Row count:** {len(filtered)}")
-    _sl_cols = [c for c in filtered.columns if "sl" in str(c).lower()]
-    _entry_cols = [c for c in filtered.columns if "entry" in str(c).lower()]
-    st.write(f"**SL-like columns:** {_sl_cols}")
-    st.write(f"**Entry-like columns:** {_entry_cols}")
-    for _c in _sl_cols:
-        _nn = int(filtered[_c].notna().sum())
-        st.write(f"  `{_c}` — non-null: {_nn}")
-        st.code(filtered[_c].head(5).to_string())
-    for _c in _entry_cols:
-        _nn = int(filtered[_c].notna().sum())
-        st.write(f"  `{_c}` — non-null: {_nn}")
-        st.code(filtered[_c].head(5).to_string())
-
-
 def _lookup_sl(row):
     """Find the SL column regardless of case."""
     for k in ("SL", "sl", "S_L", "s_l"):
@@ -1119,6 +1100,83 @@ else:
         <div style="font-size:36px;font-weight:800;color:{_exp_color};text-align:center;letter-spacing:-0.5px;">{_exp_sign}{_expectancy:.2f}R</div>
         <div style="font-size:13px;color:{theme['subtext']};text-align:center;margin-top:6px;">Based on {_n} trades with SL · {_verdict}</div>
     </div>""", unsafe_allow_html=True)
+
+# ===============================================================
+# R-MULTIPLE BREAKDOWN
+# ===============================================================
+_r_break = filtered.copy()
+_r_break["r_mult"] = _r_break.apply(_r_mult, axis=1)
+_r_break = _r_break[_r_break["r_mult"].notna()].copy()
+
+if not _r_break.empty:
+    st.markdown('<div class="section-title" style="margin-top:1.4rem;">R-MULTIPLE BREAKDOWN</div>', unsafe_allow_html=True)
+
+    def _r_card(label, avg_r, count, wins, total):
+        color = WIN_COLOR if avg_r >= 0 else LOSS_COLOR
+        sign = "+" if avg_r >= 0 else ""
+        wr = (wins / total * 100) if total else 0
+        return f"""
+        <div style="background:rgba(30,35,60,0.5);border:1px solid rgba(212,175,55,0.15);backdrop-filter:blur(12px);border-radius:16px;padding:18px;">
+            <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">{label}</div>
+            <div style="display:flex;justify-content:space-around;gap:8px;">
+                <div style="text-align:center;flex:1;">
+                    <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Avg R</div>
+                    <div style="font-size:22px;font-weight:700;color:{color};">{sign}{avg_r:.2f}R</div>
+                </div>
+                <div style="text-align:center;flex:1;">
+                    <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Trades</div>
+                    <div style="font-size:22px;font-weight:700;color:{accent};">{count}</div>
+                </div>
+                <div style="text-align:center;flex:1;">
+                    <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Win Rate</div>
+                    <div style="font-size:22px;font-weight:700;color:{accent};">{wr:.0f}%</div>
+                </div>
+            </div>
+        </div>"""
+
+    _type_col = "Type" if "Type" in filtered.columns else "type"
+    _long_r = _r_break[_r_break[_type_col].astype(str).str.lower() == "buy"]["r_mult"]
+    _short_r = _r_break[_r_break[_type_col].astype(str).str.lower() == "sell"]["r_mult"]
+
+    _d1, _d2 = st.columns(2)
+    with _d1:
+        st.markdown(_r_card("R BY DIRECTION · Long (Buy)",
+                            float(_long_r.mean()) if not _long_r.empty else 0.0,
+                            len(_long_r),
+                            int((_long_r > 0).sum()),
+                            len(_long_r)), unsafe_allow_html=True)
+    with _d2:
+        st.markdown(_r_card("R BY DIRECTION · Short (Sell)",
+                            float(_short_r.mean()) if not _short_r.empty else 0.0,
+                            len(_short_r),
+                            int((_short_r > 0).sum()),
+                            len(_short_r)), unsafe_allow_html=True)
+
+    if "exit_reason" in _r_break.columns:
+        _tp_r = _r_break[_r_break["exit_reason"] == "TP"]["r_mult"]
+        _sl_r = _r_break[_r_break["exit_reason"] == "SL"]["r_mult"]
+        _mn_r = _r_break[_r_break["exit_reason"] == "Manual"]["r_mult"]
+
+        st.markdown('<div class="section-title" style="margin-top:1.2rem;">R BY EXIT REASON</div>', unsafe_allow_html=True)
+        _e1, _e2, _e3 = st.columns(3)
+        with _e1:
+            st.markdown(_r_card("TP Hits",
+                                float(_tp_r.mean()) if not _tp_r.empty else 0.0,
+                                len(_tp_r),
+                                int((_tp_r > 0).sum()),
+                                len(_tp_r)), unsafe_allow_html=True)
+        with _e2:
+            st.markdown(_r_card("SL Hits",
+                                float(_sl_r.mean()) if not _sl_r.empty else 0.0,
+                                len(_sl_r),
+                                int((_sl_r > 0).sum()),
+                                len(_sl_r)), unsafe_allow_html=True)
+        with _e3:
+            st.markdown(_r_card("Manual",
+                                float(_mn_r.mean()) if not _mn_r.empty else 0.0,
+                                len(_mn_r),
+                                int((_mn_r > 0).sum()),
+                                len(_mn_r)), unsafe_allow_html=True)
 
 # ===============================================================
 # P&L WATERFALL (daily bars)
