@@ -770,7 +770,7 @@ def _side_panel(label, stats, accent_color):
     pnl_color = WIN_COLOR if stats["pnl"] >= 0 else LOSS_COLOR
     sign = "+" if stats["pnl"] >= 0 else ""
     return f"""
-    <div style="{card_style_css()}border-radius:16px;padding:18px;">
+    <div style="background:rgba(30,35,60,0.5);border:1px solid rgba(212,175,55,0.15);backdrop-filter:blur(12px);border-radius:16px;padding:18px;">
         <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;
                     letter-spacing:1px;margin-bottom:12px;">{label}</div>
         <div style="display:flex;justify-content:space-between;gap:12px;">
