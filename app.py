@@ -299,6 +299,16 @@ def _h(label):
     safe = tip.replace('"', "&quot;")
     return f' <span class="metric-help" tabindex="0" data-tip="{safe}">?</span>'
 
+# TOOLTIPS2_APPLIED
+_METRIC_HELP.update({
+    "avg r": "Average R-multiple for this group. R = profit ÷ initial risk. Positive means the group is profitable per trade.",
+    "trades": "Number of trades in this group.",
+    "expectancy per trade": "Average R gained per trade. Positive = repeatable edge. This is the single best predictor of long-term success. Above +0.3R is strong.",
+    "largest win": "The single biggest profit in dollars across the filtered trades.",
+    "largest loss": "The single biggest loss in dollars across the filtered trades.",
+    "r by exit reason": "Breakdown of performance by how each trade ended.",
+})
+
 
 # ===============================================================
 # PASSWORD GATE
@@ -861,15 +871,15 @@ def _side_panel(label, stats, accent_color):
                     letter-spacing:1px;margin-bottom:12px;">{label}{_h(label)}</div>
         <div style="display:flex;justify-content:space-between;gap:12px;">
             <div style="text-align:center;flex:1;">
-                <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Trades</div>
+                <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Trades{_h('Trades')}</div>
                 <div style="font-size:22px;font-weight:700;color:{accent_color};">{stats['count']}</div>
             </div>
             <div style="text-align:center;flex:1;">
-                <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Win Rate</div>
+                <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Win Rate{_h('Win Rate')}</div>
                 <div style="font-size:22px;font-weight:700;color:{accent_color};">{stats['wr']:.1f}%</div>
             </div>
             <div style="text-align:center;flex:1;">
-                <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Net P&L</div>
+                <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Net P&L{_h('Net P&L')}</div>
                 <div style="font-size:22px;font-weight:700;color:{pnl_color};">{sign}${stats['pnl']:.2f}</div>
             </div>
         </div>
@@ -913,15 +923,15 @@ if "exit_reason" in filtered.columns and filtered["exit_reason"].notna().any():
                         letter-spacing:1px;margin-bottom:12px;">{label}{_h(label)}</div>
             <div style="display:flex;justify-content:space-between;gap:8px;">
                 <div style="text-align:center;flex:1;">
-                    <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Trades</div>
+                    <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Trades{_h('Trades')}</div>
                     <div style="font-size:20px;font-weight:700;color:{accent_color};">{stats['count']}</div>
                 </div>
                 <div style="text-align:center;flex:1;">
-                    <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Win Rate</div>
+                    <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Win Rate{_h('Win Rate')}</div>
                     <div style="font-size:20px;font-weight:700;color:{accent_color};">{stats['wr']:.1f}%</div>
                 </div>
                 <div style="text-align:center;flex:1;">
-                    <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Net P&L</div>
+                    <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Net P&L{_h('Net P&L')}</div>
                     <div style="font-size:20px;font-weight:700;color:{pnl_color};">{sign}${stats['pnl']:.2f}</div>
                 </div>
             </div>
@@ -1043,7 +1053,7 @@ with c3:
                     text-align:center;height:230px;
                     display:flex;flex-direction:column;justify-content:center;">
             <div style="font-size:12px;color:{theme['subtext']};letter-spacing:0.5px;
-                        text-transform:uppercase;margin-bottom:8px;">Net P&L</div>
+                        text-transform:uppercase;margin-bottom:8px;">Net P&L{_h('Net P&L')}</div>
             <div style="font-size:36px;font-weight:800;color:{color};
                         letter-spacing:-0.5px;">
                 {sign}${net:.2f}
@@ -1056,7 +1066,7 @@ with c4:
                     text-align:center;height:230px;
                     display:flex;flex-direction:column;justify-content:center;">
             <div style="font-size:12px;color:{theme['subtext']};letter-spacing:0.5px;
-                        text-transform:uppercase;margin-bottom:8px;">Total Trades</div>
+                        text-transform:uppercase;margin-bottom:8px;">Total Trades{_h('Total Trades')}</div>
             <div style="font-size:36px;font-weight:800;color:{accent};
                         letter-spacing:-0.5px;">
                 {metrics['total_trades']}
@@ -1068,25 +1078,25 @@ st.markdown(
                 display:flex;justify-content:space-around;margin-top:10px;">
         <div style="text-align:center;">
             <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;
-                        letter-spacing:0.5px;">Avg Win</div>
+                        letter-spacing:0.5px;">Avg Win{_h('Avg Win')}</div>
             <div style="font-size:20px;font-weight:700;color:{WIN_COLOR};">
                 ${metrics['avg_win']}</div>
         </div>
         <div style="text-align:center;">
             <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;
-                        letter-spacing:0.5px;">Avg Loss</div>
+                        letter-spacing:0.5px;">Avg Loss{_h('Avg Loss')}</div>
             <div style="font-size:20px;font-weight:700;color:{LOSS_COLOR};">
                 ${metrics['avg_loss']}</div>
         </div>
         <div style="text-align:center;">
             <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;
-                        letter-spacing:0.5px;">Largest Win</div>
+                        letter-spacing:0.5px;">Largest Win{_h('Largest Win')}</div>
             <div style="font-size:20px;font-weight:700;color:{WIN_COLOR};">
                 ${metrics['largest_win']}</div>
         </div>
         <div style="text-align:center;">
             <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;
-                        letter-spacing:0.5px;">Largest Loss</div>
+                        letter-spacing:0.5px;">Largest Loss{_h('Largest Loss')}</div>
             <div style="font-size:20px;font-weight:700;color:{LOSS_COLOR};">
                 ${metrics['largest_loss']}</div>
         </div>
@@ -1182,7 +1192,7 @@ else:
 
     st.markdown(f"""
     <div style="background:rgba(30,35,60,0.5);border:1px solid rgba(212,175,55,0.15);backdrop-filter:blur(12px);border-radius:16px;padding:18px;">
-        <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;text-align:center;">Expectancy per Trade</div>
+        <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;text-align:center;">Expectancy per Trade{_h('Expectancy per Trade')}</div>
         <div style="font-size:36px;font-weight:800;color:{_exp_color};text-align:center;letter-spacing:-0.5px;">{_exp_sign}{_expectancy:.2f}R</div>
         <div style="font-size:13px;color:{theme['subtext']};text-align:center;margin-top:6px;">Based on {_n} trades with SL · {_verdict}</div>
     </div>""", unsafe_allow_html=True)
@@ -1206,15 +1216,15 @@ if not _r_break.empty:
             <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">{label}{_h(label)}</div>
             <div style="display:flex;justify-content:space-around;gap:8px;">
                 <div style="text-align:center;flex:1;">
-                    <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Avg R</div>
+                    <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Avg R{_h('Avg R')}</div>
                     <div style="font-size:22px;font-weight:700;color:{color};">{sign}{avg_r:.2f}R</div>
                 </div>
                 <div style="text-align:center;flex:1;">
-                    <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Trades</div>
+                    <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Trades{_h('Trades')}</div>
                     <div style="font-size:22px;font-weight:700;color:{accent};">{count}</div>
                 </div>
                 <div style="text-align:center;flex:1;">
-                    <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Win Rate</div>
+                    <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Win Rate{_h('Win Rate')}</div>
                     <div style="font-size:22px;font-weight:700;color:{accent};">{wr:.0f}%</div>
                 </div>
             </div>
