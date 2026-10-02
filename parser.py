@@ -53,6 +53,75 @@ def parse_mt5_xlsx(file_bytes):
         trades["Exit_Time"] - trades["Entry_Time"]
     ).dt.total_seconds() / 60
 
+    # ---- Parse Deals section for exit reasons (TP / SL / Manual) ----
+    deals_start = None
+    for i, val in enumerate(raw.iloc[:, 0]):
+        if str(val).strip() == "Deals":
+            deals_start = i
+            break
+
+    exit_reason_map = {}
+    if deals_start is not None:
+        deals_header_row = deals_start + 1
+        deals_headers = raw.iloc[deals_header_row].tolist()
+        deals_data_start = deals_start + 2
+
+        deals_end = len(raw)
+        for i in range(deals_data_start, len(raw)):
+            first_cell = str(raw.iloc[i, 0]).strip()
+            if first_cell == "Results":
+                deals_end = i
+                break
+
+        deals = raw.iloc[deals_data_start:deals_end].copy()
+        deals.columns = deals_headers[:len(deals.columns)]
+        deals = deals.dropna(how="all")
+
+        def _find_col(df, target):
+            for c in df.columns:
+                if str(c).strip().lower() == target.lower():
+                    return c
+            return None
+
+        col_dir = _find_col(deals, "Direction")
+        col_sym = _find_col(deals, "Symbol")
+        col_vol = _find_col(deals, "Volume")
+        col_time = _find_col(deals, "Time")
+        col_comm = _find_col(deals, "Comment")
+
+        if col_dir and col_sym and col_vol and col_time and col_comm:
+            for _, drow in deals.iterrows():
+                if str(drow[col_dir]).strip().lower() != "out":
+                    continue
+                symbol = str(drow[col_sym]).strip()
+                try:
+                    vol = round(float(drow[col_vol]), 4)
+                except (TypeError, ValueError):
+                    continue
+                dtime = pd.to_datetime(str(drow[col_time]), errors="coerce")
+                if pd.isna(dtime):
+                    continue
+                comment = str(drow[col_comm]).strip().lower()
+                reason = "Manual"
+                if "[tp" in comment:
+                    reason = "TP"
+                elif "[sl" in comment:
+                    reason = "SL"
+                exit_reason_map[(symbol, vol, dtime)] = reason
+
+    def _lookup_reason(row):
+        try:
+            symbol = str(row["Symbol"]).strip()
+            vol = round(float(row["Volume"]), 4)
+            dtime = row["Exit_Time"]
+            if pd.isna(dtime):
+                return "Manual"
+            return exit_reason_map.get((symbol, vol, dtime), "Manual")
+        except Exception:
+            return "Manual"
+
+    trades["Exit_Reason"] = trades.apply(_lookup_reason, axis=1)
+
     trades = trades.reset_index(drop=True)
     return trades
 

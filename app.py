@@ -611,9 +611,9 @@ with st.expander("📥 Upload Report", expanded=False):
         try:
             file_bytes = uploaded.read()
             df_up = parse_mt5_xlsx(file_bytes)
-            inserted, skipped = db.insert_trades(account_id, df_up)
-            if inserted:
-                st.success(f"✅ Imported {inserted} new trades. ({skipped} duplicates skipped)")
+            inserted, skipped, backfilled = db.insert_trades(account_id, df_up)
+            if inserted or backfilled:
+                st.success(f"✅ Imported {inserted} new, backfilled {backfilled} exit reasons. ({skipped} duplicates skipped)")
             else:
                 st.info(f"ℹ️ No new trades to import. ({skipped} duplicates skipped)")
         except Exception as e:
@@ -793,6 +793,62 @@ with ls1:
     st.markdown(_side_panel("LONG (Buy)", _L, WIN_COLOR), unsafe_allow_html=True)
 with ls2:
     st.markdown(_side_panel("SHORT (Sell)", _S, LOSS_COLOR), unsafe_allow_html=True)
+
+# ===============================================================
+# EXIT REASON
+# ===============================================================
+st.markdown('<div class="section-title">EXIT REASON</div>', unsafe_allow_html=True)
+
+if "exit_reason" in filtered.columns and filtered["exit_reason"].notna().any():
+    _er_df = filtered.copy()
+    _er_df["exit_reason"] = _er_df["exit_reason"].fillna("Manual")
+
+    def _er_stats(sub):
+        if sub.empty:
+            return {"count": 0, "wr": 0.0, "pnl": 0.0}
+        return {
+            "count": len(sub),
+            "wr": (sub["Profit"] > 0).sum() / len(sub) * 100.0,
+            "pnl": float(sub["Profit"].sum()),
+        }
+
+    _tp = _er_stats(_er_df[_er_df["exit_reason"] == "TP"])
+    _sl = _er_stats(_er_df[_er_df["exit_reason"] == "SL"])
+    _mn = _er_stats(_er_df[_er_df["exit_reason"] == "Manual"])
+
+    er1, er2, er3 = st.columns(3)
+
+    def _er_panel(label, stats, accent_color):
+        pnl_color = WIN_COLOR if stats["pnl"] >= 0 else LOSS_COLOR
+        sign = "+" if stats["pnl"] >= 0 else ""
+        return f"""
+        <div style="background:rgba(30,35,60,0.5);border:1px solid rgba(212,175,55,0.15);backdrop-filter:blur(12px);border-radius:16px;padding:18px;">
+            <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;
+                        letter-spacing:1px;margin-bottom:12px;">{label}</div>
+            <div style="display:flex;justify-content:space-between;gap:8px;">
+                <div style="text-align:center;flex:1;">
+                    <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Trades</div>
+                    <div style="font-size:20px;font-weight:700;color:{accent_color};">{stats['count']}</div>
+                </div>
+                <div style="text-align:center;flex:1;">
+                    <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Win Rate</div>
+                    <div style="font-size:20px;font-weight:700;color:{accent_color};">{stats['wr']:.1f}%</div>
+                </div>
+                <div style="text-align:center;flex:1;">
+                    <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Net P&L</div>
+                    <div style="font-size:20px;font-weight:700;color:{pnl_color};">{sign}${stats['pnl']:.2f}</div>
+                </div>
+            </div>
+        </div>"""
+
+    with er1:
+        st.markdown(_er_panel("TP Hits", _tp, WIN_COLOR), unsafe_allow_html=True)
+    with er2:
+        st.markdown(_er_panel("SL Hits", _sl, LOSS_COLOR), unsafe_allow_html=True)
+    with er3:
+        st.markdown(_er_panel("Manual Close", _mn, accent), unsafe_allow_html=True)
+else:
+    st.caption("No exit reason data yet. Re-upload your MT5 reports to populate this panel.")
 
 # ===============================================================
 # STREAK TRACKER

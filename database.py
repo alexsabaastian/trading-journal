@@ -75,20 +75,33 @@ def load_accounts(include_archived=False):
 
 
 def insert_trades(account_id, trades_df):
+    # Fetch existing trades + their exit_reason status
     r = requests.get(
         f"{SUPABASE_URL}/rest/v1/trades",
         headers=_headers(),
-        params={"account_id": f"eq.{account_id}", "select": "position_id"},
+        params={"account_id": f"eq.{account_id}", "select": "position_id,exit_reason"},
         timeout=30,
     )
     r.raise_for_status()
-    existing = {int(row["position_id"]) for row in r.json()}
+    existing_rows = r.json()
+    existing_ids = {int(row["position_id"]) for row in existing_rows}
+    needs_backfill = {
+        int(row["position_id"])
+        for row in existing_rows
+        if not row.get("exit_reason")
+    }
 
-    new_df = trades_df[~trades_df["Position"].isin(existing)]
+    new_df = trades_df[~trades_df["Position"].isin(existing_ids)]
     skipped = len(trades_df) - len(new_df)
 
     inserted = 0
+    backfilled = 0
+
     for _, row in new_df.iterrows():
+        _er = None
+        if "Exit_Reason" in row.index:
+            v = row["Exit_Reason"]
+            _er = None if pd.isna(v) else str(v)
         payload = {
             "account_id": int(account_id),
             "position_id": int(row["Position"]),
@@ -99,12 +112,13 @@ def insert_trades(account_id, trades_df):
             "volume": float(row["Volume"]) if pd.notna(row["Volume"]) else 0,
             "entry_price": float(row["Entry_Price"]) if pd.notna(row["Entry_Price"]) else 0,
             "exit_price": float(row["Exit_Price"]) if pd.notna(row["Exit_Price"]) else 0,
-            "sl": float(row["SL"]) if "SL" in row and pd.notna(row["SL"]) else None,
-            "tp": float(row["TP"]) if "TP" in row and pd.notna(row["TP"]) else None,
+            "sl": float(row["SL"]) if "SL" in row.index and pd.notna(row["SL"]) else None,
+            "tp": float(row["TP"]) if "TP" in row.index and pd.notna(row["TP"]) else None,
             "commission": float(row["Commission"]) if pd.notna(row["Commission"]) else 0,
             "swap": float(row["Swap"]) if pd.notna(row["Swap"]) else 0,
             "profit": float(row["Profit"]) if pd.notna(row["Profit"]) else 0,
             "hold_time_min": float(row["Hold_Time_Min"]) if pd.notna(row["Hold_Time_Min"]) else 0,
+            "exit_reason": _er,
         }
         resp = requests.post(
             f"{SUPABASE_URL}/rest/v1/trades",
@@ -115,7 +129,27 @@ def insert_trades(account_id, trades_df):
         if resp.status_code < 400:
             inserted += 1
 
-    return inserted, skipped
+    # Backfill existing trades missing exit_reason
+    for _, row in trades_df.iterrows():
+        pid = int(row["Position"])
+        if pid not in needs_backfill:
+            continue
+        if "Exit_Reason" not in row.index:
+            continue
+        reason = row["Exit_Reason"]
+        if pd.isna(reason) or not reason:
+            continue
+        resp = requests.patch(
+            f"{SUPABASE_URL}/rest/v1/trades",
+            headers=_headers("return=minimal"),
+            params={"account_id": f"eq.{account_id}", "position_id": f"eq.{pid}"},
+            json={"exit_reason": str(reason)},
+            timeout=30,
+        )
+        if resp.status_code < 400:
+            backfilled += 1
+
+    return inserted, skipped, backfilled
 
 
 def load_all_trades(active_only=True):
