@@ -1049,9 +1049,16 @@ def _r_mult(row):
         if entry == 0 or vol == 0:
             return None
         risk = abs(entry - sl) * vol * 100
-        if risk <= 0:
+        # R_CAP_APPLIED: filter trailing-stop artifacts
+        if risk < 3.0:
             return None
-        return profit / risk
+        r = profit / risk
+        # Cap at ±10R — anything higher is a trailing-stop artifact, not a real edge
+        if r > 10.0:
+            r = 10.0
+        elif r < -10.0:
+            r = -10.0
+        return r
     except (TypeError, ValueError, KeyError):
         return None
 
