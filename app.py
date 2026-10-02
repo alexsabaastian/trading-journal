@@ -1011,6 +1011,25 @@ st.markdown(
 # ===============================================================
 st.markdown('<div class="section-title">R-MULTIPLE</div>', unsafe_allow_html=True)
 
+# R_DEBUG_BLOCK (temporary — remove once R-Multiple is fixed)
+with st.expander("🔍 R-MULTIPLE DEBUG", expanded=True):
+    st.write("**All columns in `filtered`:**")
+    st.code(", ".join(str(c) for c in filtered.columns))
+    st.write(f"**Row count:** {len(filtered)}")
+    _sl_cols = [c for c in filtered.columns if "sl" in str(c).lower()]
+    _entry_cols = [c for c in filtered.columns if "entry" in str(c).lower()]
+    st.write(f"**SL-like columns:** {_sl_cols}")
+    st.write(f"**Entry-like columns:** {_entry_cols}")
+    for _c in _sl_cols:
+        _nn = int(filtered[_c].notna().sum())
+        st.write(f"  `{_c}` — non-null: {_nn}")
+        st.code(filtered[_c].head(5).to_string())
+    for _c in _entry_cols:
+        _nn = int(filtered[_c].notna().sum())
+        st.write(f"  `{_c}` — non-null: {_nn}")
+        st.code(filtered[_c].head(5).to_string())
+
+
 def _r_mult(row):
     try:
         entry = float(row["Entry_Price"])
