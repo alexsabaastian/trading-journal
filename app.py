@@ -527,6 +527,9 @@ st.sidebar.header("🎨 Appearance")
 
 accent_name = st.sidebar.selectbox("Accent Color", list(ACCENTS.keys()), index=0)
 font_scale = st.sidebar.slider("Text Size", min_value=85, max_value=130, value=100, step=5, format="%d%%")
+# PNL_WR_APPLIED
+_wr_mode_label = st.sidebar.radio("Win Rate Display", ["Percentage", "Count"], horizontal=True)
+st.session_state["_wr_mode"] = "count" if _wr_mode_label == "Count" else "pct"
 _scale = font_scale / 100.0
 st.markdown(
     f"<style>:root {{ --font-scale: {_scale}; }}</style>",
@@ -1207,25 +1210,37 @@ _r_break = _r_break[_r_break["r_mult"].notna()].copy()
 if not _r_break.empty:
     st.markdown('<div class="section-title" style="margin-top:1.4rem;">R-MULTIPLE BREAKDOWN</div>', unsafe_allow_html=True)
 
-    def _r_card(label, avg_r, count, wins, total):
+    def _wr_text(wins, total):
+        if not total:
+            return "—"
+        if st.session_state.get("_wr_mode") == "count":
+            return f"{wins} / {total}"
+        return f"{wins / total * 100:.0f}%"
+
+    def _r_card(label, avg_r, count, wins, total, net_pnl=0.0):
         color = WIN_COLOR if avg_r >= 0 else LOSS_COLOR
         sign = "+" if avg_r >= 0 else ""
-        wr = (wins / total * 100) if total else 0
+        pnl_color = WIN_COLOR if net_pnl >= 0 else LOSS_COLOR
+        pnl_sign = "+" if net_pnl >= 0 else ""
         return f"""
         <div style="background:rgba(30,35,60,0.5);border:1px solid rgba(212,175,55,0.15);backdrop-filter:blur(12px);border-radius:16px;padding:18px;">
             <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">{label}{_h(label)}</div>
-            <div style="display:flex;justify-content:space-around;gap:8px;">
+            <div style="display:flex;justify-content:space-around;gap:6px;">
                 <div style="text-align:center;flex:1;">
                     <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Avg R{_h('Avg R')}</div>
-                    <div style="font-size:22px;font-weight:700;color:{color};">{sign}{avg_r:.2f}R</div>
+                    <div style="font-size:20px;font-weight:700;color:{color};">{sign}{avg_r:.2f}R</div>
                 </div>
                 <div style="text-align:center;flex:1;">
                     <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Trades{_h('Trades')}</div>
-                    <div style="font-size:22px;font-weight:700;color:{accent};">{count}</div>
+                    <div style="font-size:20px;font-weight:700;color:{accent};">{count}</div>
                 </div>
                 <div style="text-align:center;flex:1;">
                     <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Win Rate{_h('Win Rate')}</div>
-                    <div style="font-size:22px;font-weight:700;color:{accent};">{wr:.0f}%</div>
+                    <div style="font-size:20px;font-weight:700;color:{accent};">{_wr_text(wins, total)}</div>
+                </div>
+                <div style="text-align:center;flex:1;">
+                    <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Net P&L{_h('Net P&L')}</div>
+                    <div style="font-size:20px;font-weight:700;color:{pnl_color};">{pnl_sign}${net_pnl:.0f}</div>
                 </div>
             </div>
         </div>"""
@@ -1240,13 +1255,15 @@ if not _r_break.empty:
                             float(_long_r.mean()) if not _long_r.empty else 0.0,
                             len(_long_r),
                             int((_long_r > 0).sum()),
-                            len(_long_r)), unsafe_allow_html=True)
+                            len(_long_r),
+                            float(_r_break[_r_break[_type_col].astype(str).str.lower() == "buy"]["Profit"].sum())), unsafe_allow_html=True)
     with _d2:
         st.markdown(_r_card("R BY DIRECTION · Short (Sell)",
                             float(_short_r.mean()) if not _short_r.empty else 0.0,
                             len(_short_r),
                             int((_short_r > 0).sum()),
-                            len(_short_r)), unsafe_allow_html=True)
+                            len(_short_r),
+                            float(_r_break[_r_break[_type_col].astype(str).str.lower() == "sell"]["Profit"].sum())), unsafe_allow_html=True)
 
     if "exit_reason" in _r_break.columns:
         _tp_r = _r_break[_r_break["exit_reason"] == "TP"]["r_mult"]
@@ -1260,19 +1277,22 @@ if not _r_break.empty:
                                 float(_tp_r.mean()) if not _tp_r.empty else 0.0,
                                 len(_tp_r),
                                 int((_tp_r > 0).sum()),
-                                len(_tp_r)), unsafe_allow_html=True)
+                                len(_tp_r),
+                                float(_r_break[_r_break["exit_reason"] == "TP"]["Profit"].sum())), unsafe_allow_html=True)
         with _e2:
             st.markdown(_r_card("SL Hits",
                                 float(_sl_r.mean()) if not _sl_r.empty else 0.0,
                                 len(_sl_r),
                                 int((_sl_r > 0).sum()),
-                                len(_sl_r)), unsafe_allow_html=True)
+                                len(_sl_r),
+                                float(_r_break[_r_break["exit_reason"] == "SL"]["Profit"].sum())), unsafe_allow_html=True)
         with _e3:
             st.markdown(_r_card("Manual",
                                 float(_mn_r.mean()) if not _mn_r.empty else 0.0,
                                 len(_mn_r),
                                 int((_mn_r > 0).sum()),
-                                len(_mn_r)), unsafe_allow_html=True)
+                                len(_mn_r),
+                                float(_r_break[_r_break["exit_reason"] == "Manual"]["Profit"].sum())), unsafe_allow_html=True)
 
 # ===============================================================
 # P&L WATERFALL (daily bars)
