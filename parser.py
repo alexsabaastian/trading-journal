@@ -192,7 +192,7 @@ def parse_mt5_transactions(file_bytes):
     if not all([col_time, col_type, col_profit, col_balance]):
         return pd.DataFrame()
 
-    mask = deals[col_type].astype(str).str.strip().str.lower().isin(["balance", "credit"])
+    mask = deals[col_type].astype(str).str.strip().str.lower().isin(["balance", "credit", "charge", "correction", "deposit", "withdrawal"])
     tx = deals[mask].copy()
     if tx.empty:
         return pd.DataFrame()
