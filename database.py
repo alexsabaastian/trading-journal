@@ -316,3 +316,35 @@ def load_transactions(account_id=None):
         df["balance_after"] = pd.to_numeric(df["balance_after"], errors="coerce")
         df["transaction_time"] = pd.to_datetime(df["transaction_time"], errors="coerce")
     return df
+
+
+def load_strategy_presets():
+    """Return list of preset strategy names, sorted."""
+    try:
+        r = requests.get(
+            f"{SUPABASE_URL}/rest/v1/strategy_presets",
+            headers=_headers(),
+            params={"select": "name", "order": "name.asc"},
+            timeout=30,
+        )
+        r.raise_for_status()
+        return [row["name"] for row in r.json()]
+    except Exception:
+        return []
+
+
+def add_strategy_preset(name):
+    """Insert a preset if it doesn't already exist. No-op on duplicate."""
+    name = (name or "").strip()
+    if not name:
+        return False
+    try:
+        r = requests.post(
+            f"{SUPABASE_URL}/rest/v1/strategy_presets",
+            headers=_headers("return=minimal,resolution=ignore-duplicates"),
+            json={"name": name},
+            timeout=30,
+        )
+        return r.status_code < 400
+    except Exception:
+        return False

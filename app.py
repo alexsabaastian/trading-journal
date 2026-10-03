@@ -1555,12 +1555,20 @@ with tab_journal:
     SESSION_OPTIONS = ["", "Asia", "London", "New York", "London/NY Overlap", "Other"]
     session_index = SESSION_OPTIONS.index(existing_session) if existing_session in SESSION_OPTIONS else 0
 
+    _presets = db.load_strategy_presets()
+    _opts = [""] + _presets
+    if existing_strategy and existing_strategy not in _opts:
+        _opts = [""] + [existing_strategy] + _presets
+    _idx = _opts.index(existing_strategy) if existing_strategy in _opts else 0
+
     col_a, col_b = st.columns([2, 1])
     with col_a:
-        strategy_input = st.text_input(
+        strategy_input = st.selectbox(
             "Strategy / Confluence",
-            value=existing_strategy,
-            placeholder="e.g. London breakout after Asian range compression",
+            options=_opts,
+            index=_idx,
+            accept_new_options=True,
+            placeholder="Pick from list, or type a new strategy",
             key="strategy_input",
         )
     with col_b:
@@ -1586,6 +1594,9 @@ with tab_journal:
             strategy_input,
             session_input,
         )
+        _s = (strategy_input or "").strip()
+        if _s and _s not in _presets:
+            db.add_strategy_preset(_s)
         st.success("Note saved to Supabase ✅")
         st.rerun()
 
