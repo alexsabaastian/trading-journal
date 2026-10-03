@@ -4,7 +4,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 from calendar import monthrange
-from parser import parse_mt5_xlsx, calculate_metrics
+from parser import parse_mt5_xlsx, calculate_metrics, parse_mt5_transactions
 import database as db
 
 st.set_page_config(page_title="Allensdenfx", layout="wide")
@@ -711,10 +711,24 @@ with st.expander("📥 Upload Report", expanded=False):
             file_bytes = uploaded.read()
             df_up = parse_mt5_xlsx(file_bytes)
             inserted, skipped, backfilled = db.insert_trades(account_id, df_up)
-            if inserted or backfilled:
-                st.success(f"✅ Imported {inserted} new, backfilled {backfilled} exit reasons. ({skipped} duplicates skipped)")
+
+            tx_ins, tx_skip = 0, 0
+            try:
+                tx_df = parse_mt5_transactions(file_bytes)
+                tx_ins, tx_skip = db.insert_transactions(account_id, tx_df)
+            except Exception:
+                pass
+
+            parts = []
+            if inserted: parts.append(f"{inserted} new trades")
+            if backfilled: parts.append(f"{backfilled} backfilled exit reasons")
+            if tx_ins: parts.append(f"{tx_ins} cash flow entries")
+            total_skipped = skipped + tx_skip
+
+            if parts:
+                st.success("✅ Imported " + ", ".join(parts) + f". ({total_skipped} duplicates skipped)")
             else:
-                st.info(f"ℹ️ No new trades to import. ({skipped} duplicates skipped)")
+                st.info(f"ℹ️ No new data to import. ({total_skipped} duplicates skipped)")
         except Exception as e:
             st.error(f"❌ Error parsing file: {e}")
             st.exception(e)
@@ -948,6 +962,45 @@ if "exit_reason" in filtered.columns and filtered["exit_reason"].notna().any():
         st.markdown(_er_panel("Manual Close", _mn, accent), unsafe_allow_html=True)
 else:
     st.caption("No exit reason data yet. Re-upload your MT5 reports to populate this panel.")
+
+# ===============================================================
+# CASH FLOW
+# ===============================================================
+if account_id is not None:
+    _tx_df = db.load_transactions(account_id=account_id)
+else:
+    _tx_df = db.load_transactions()
+
+if not _tx_df.empty:
+    st.markdown('<div class="section-title">💵 CASH FLOW</div>', unsafe_allow_html=True)
+
+    _deposits = float(_tx_df[_tx_df["amount"] > 0]["amount"].sum())
+    _withdrawals = float(abs(_tx_df[_tx_df["amount"] < 0]["amount"].sum()))
+    _net_deposits = _deposits - _withdrawals
+
+    _last_bal = _tx_df.iloc[-1]["balance_after"]
+    _current_equity = float(_last_bal) if pd.notna(_last_bal) else _net_deposits
+    _true_return = ((_current_equity - _net_deposits) / _net_deposits * 100) if _net_deposits > 0 else 0.0
+
+    def _cf_card(label, value_str, color):
+        return f"""
+        <div style="background:rgba(30,35,60,0.5);border:1px solid rgba(212,175,55,0.15);backdrop-filter:blur(12px);border-radius:16px;padding:18px;text-align:center;">
+            <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">{label}</div>
+            <div style="font-size:26px;font-weight:800;color:{color};letter-spacing:-0.5px;">{value_str}</div>
+        </div>"""
+
+    cf1, cf2, cf3, cf4 = st.columns(4)
+    with cf1:
+        st.markdown(_cf_card("Total Deposits", f"${_deposits:,.2f}", WIN_COLOR), unsafe_allow_html=True)
+    with cf2:
+        _wcolor = LOSS_COLOR if _withdrawals > 0 else theme['subtext']
+        st.markdown(_cf_card("Total Withdrawals", f"${_withdrawals:,.2f}", _wcolor), unsafe_allow_html=True)
+    with cf3:
+        st.markdown(_cf_card("Net Deposits", f"${_net_deposits:,.2f}", accent), unsafe_allow_html=True)
+    with cf4:
+        _tr_color = WIN_COLOR if _true_return >= 0 else LOSS_COLOR
+        _tr_sign = "+" if _true_return >= 0 else ""
+        st.markdown(_cf_card("True Return", f"{_tr_sign}{_true_return:.2f}%", _tr_color), unsafe_allow_html=True)
 
 # ===============================================================
 # STREAK TRACKER

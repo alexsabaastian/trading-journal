@@ -149,3 +149,64 @@ def calculate_metrics(df):
         "gross_profit": round(gross_profit, 2),
         "gross_loss": round(gross_loss, 2),
     }
+
+
+def parse_mt5_transactions(file_bytes):
+    """Extract deposit/withdrawal rows from the Deals section of an MT5 report."""
+    raw = pd.read_excel(BytesIO(file_bytes), header=None)
+
+    deals_start = None
+    for i, val in enumerate(raw.iloc[:, 0]):
+        if str(val).strip() == "Deals":
+            deals_start = i
+            break
+    if deals_start is None:
+        return pd.DataFrame()
+
+    deals_header_row = deals_start + 1
+    deals_headers = raw.iloc[deals_header_row].tolist()
+    deals_data_start = deals_start + 2
+
+    deals_end = len(raw)
+    for i in range(deals_data_start, len(raw)):
+        if str(raw.iloc[i, 0]).strip() == "Results":
+            deals_end = i
+            break
+
+    deals = raw.iloc[deals_data_start:deals_end].copy()
+    deals.columns = deals_headers[:len(deals.columns)]
+    deals = deals.dropna(how="all")
+
+    def _find_col(df, target):
+        for c in df.columns:
+            if str(c).strip().lower() == target.lower():
+                return c
+        return None
+
+    col_time = _find_col(deals, "Time")
+    col_type = _find_col(deals, "Type")
+    col_profit = _find_col(deals, "Profit")
+    col_balance = _find_col(deals, "Balance")
+    col_comment = _find_col(deals, "Comment")
+
+    if not all([col_time, col_type, col_profit, col_balance]):
+        return pd.DataFrame()
+
+    mask = deals[col_type].astype(str).str.strip().str.lower().isin(["balance", "credit"])
+    tx = deals[mask].copy()
+    if tx.empty:
+        return pd.DataFrame()
+
+    result = pd.DataFrame({
+        "Transaction_Time": pd.to_datetime(tx[col_time], errors="coerce"),
+        "Type": tx[col_type].astype(str).str.strip().str.lower(),
+        "Amount": pd.to_numeric(tx[col_profit], errors="coerce").fillna(0),
+        "Balance_After": pd.to_numeric(tx[col_balance], errors="coerce"),
+        "Comment": tx[col_comment].astype(str).str.strip() if col_comment is not None else "",
+    })
+
+    result["Flow"] = result["Amount"].apply(
+        lambda x: "deposit" if x > 0 else ("withdrawal" if x < 0 else "adjustment")
+    )
+
+    return result.reset_index(drop=True)

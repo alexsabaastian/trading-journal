@@ -248,3 +248,71 @@ def delete_account(account_id):
     )
     r.raise_for_status()
     return True
+
+
+def insert_transactions(account_id, tx_df):
+    """Insert cash flow rows with dedup. Returns (inserted, skipped)."""
+    if tx_df is None or tx_df.empty:
+        return 0, 0
+
+    r = requests.get(
+        f"{SUPABASE_URL}/rest/v1/account_transactions",
+        headers=_headers(),
+        params={"account_id": f"eq.{account_id}", "select": "transaction_time,amount"},
+        timeout=30,
+    )
+    r.raise_for_status()
+    existing = {(row["transaction_time"], float(row["amount"])) for row in r.json()}
+
+    inserted = 0
+    skipped = 0
+    for _, row in tx_df.iterrows():
+        t = row["Transaction_Time"]
+        amt = float(row["Amount"])
+        if (str(t), amt) in existing:
+            skipped += 1
+            continue
+
+        bal = row.get("Balance_After")
+        payload = {
+            "account_id": int(account_id),
+            "transaction_time": str(t),
+            "type": row.get("Flow", "adjustment"),
+            "amount": amt,
+            "balance_after": float(bal) if pd.notna(bal) else None,
+            "comment": row.get("Comment") or None,
+        }
+        resp = requests.post(
+            f"{SUPABASE_URL}/rest/v1/account_transactions",
+            headers=_headers("return=minimal"),
+            json=payload,
+            timeout=30,
+        )
+        if resp.status_code < 400:
+            inserted += 1
+        else:
+            skipped += 1
+
+    return inserted, skipped
+
+
+def load_transactions(account_id=None):
+    """Load all transactions, optionally filtered by account."""
+    params = {"select": "*", "order": "transaction_time.asc"}
+    if account_id is not None:
+        params["account_id"] = f"eq.{account_id}"
+
+    r = requests.get(
+        f"{SUPABASE_URL}/rest/v1/account_transactions",
+        headers=_headers(),
+        params=params,
+        timeout=30,
+    )
+    r.raise_for_status()
+    df = pd.DataFrame(r.json())
+    if not df.empty:
+        df["account_id"] = df["account_id"].astype(int)
+        df["amount"] = pd.to_numeric(df["amount"], errors="coerce")
+        df["balance_after"] = pd.to_numeric(df["balance_after"], errors="coerce")
+        df["transaction_time"] = pd.to_datetime(df["transaction_time"], errors="coerce")
+    return df
