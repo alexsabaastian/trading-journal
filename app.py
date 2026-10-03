@@ -1600,6 +1600,47 @@ with tab_journal:
         st.success("Note saved to Supabase ✅")
         st.rerun()
 
+    # ---------- Manage Strategies ----------
+    with st.expander("⚙️ Manage Strategies", expanded=False):
+        st.caption("Edit, delete, or add strategies. Changes save automatically.")
+        _all_strats = db.load_strategy_presets()
+        if not _all_strats:
+            st.info("No strategies yet. Add one below.")
+        else:
+            for _i, _s in enumerate(_all_strats):
+                _c1, _c2, _c3 = st.columns([5, 1, 1])
+                with _c1:
+                    _edited = st.text_input(
+                        f"Strategy {_i+1}",
+                        value=_s,
+                        key=f"mgmt_strat_{_i}",
+                        label_visibility="collapsed",
+                    )
+                with _c2:
+                    if st.button("💾 Save", key=f"save_strat_{_i}", help="Rename this strategy"):
+                        if _edited.strip() and _edited.strip() != _s:
+                            db.rename_strategy_preset(_s, _edited.strip())
+                            st.rerun()
+                with _c3:
+                    if st.button("🗑️", key=f"del_strat_{_i}", help="Delete this strategy"):
+                        db.delete_strategy_preset(_s)
+                        st.rerun()
+
+        st.markdown("---")
+        _nc1, _nc2 = st.columns([4, 1])
+        with _nc1:
+            _new = st.text_input(
+                "Add new strategy",
+                key="add_strat_input",
+                placeholder="Type a new strategy name",
+                label_visibility="collapsed",
+            )
+        with _nc2:
+            if st.button("➕ Add", key="add_strat_btn", type="primary"):
+                if _new.strip():
+                    db.add_strategy_preset(_new.strip())
+                    st.rerun()
+
 
 
     # ===============================================================

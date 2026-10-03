@@ -348,3 +348,42 @@ def add_strategy_preset(name):
         return r.status_code < 400
     except Exception:
         return False
+
+
+def delete_strategy_preset(name):
+    """Delete a strategy preset by name."""
+    try:
+        r = requests.delete(
+            f"{SUPABASE_URL}/rest/v1/strategy_presets",
+            headers=_headers("return=minimal"),
+            params={"name": f"eq.{name}"},
+            timeout=30,
+        )
+        return r.status_code < 400
+    except Exception:
+        return False
+
+
+def rename_strategy_preset(old_name, new_name):
+    """Rename a preset: insert new + delete old."""
+    new_name = (new_name or "").strip()
+    if not new_name or new_name == old_name:
+        return False
+    try:
+        # Insert new first so we don't lose data if delete fails
+        requests.post(
+            f"{SUPABASE_URL}/rest/v1/strategy_presets",
+            headers=_headers("return=minimal,resolution=ignore-duplicates"),
+            json={"name": new_name},
+            timeout=30,
+        )
+        # Delete old
+        r = requests.delete(
+            f"{SUPABASE_URL}/rest/v1/strategy_presets",
+            headers=_headers("return=minimal"),
+            params={"name": f"eq.{old_name}"},
+            timeout=30,
+        )
+        return r.status_code < 400
+    except Exception:
+        return False
