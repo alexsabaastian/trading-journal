@@ -836,872 +836,889 @@ today_pnl = sum_pnl(filtered, today_start, today_start + timedelta(days=1))
 week_pnl = sum_pnl(filtered, week_start, week_start + timedelta(days=7))
 month_pnl = sum_pnl(filtered, month_start_kpi, (month_start_kpi + timedelta(days=32)).replace(day=1))
 
-st.markdown('<div class="section-title">💰 P&L Snapshot</div>', unsafe_allow_html=True)
-k1, k2, k3 = st.columns(3)
-
-def kpi_html(label, value):
-    color = WIN_COLOR if value >= 0 else LOSS_COLOR
-    sign = "+" if value >= 0 else ""
-    return f"""
-    <div class="kpi-card">
-        <div class="kpi-label">{label}{_h(label)}</div>
-        <div class="kpi-value" style="color:{color};">{sign}${value:.2f}</div>
-    </div>
-    """
-
-with k1:
-    st.markdown(kpi_html("Today", today_pnl), unsafe_allow_html=True)
-with k2:
-    st.markdown(kpi_html("This Week", week_pnl), unsafe_allow_html=True)
-with k3:
-    st.markdown(kpi_html("This Month", month_pnl), unsafe_allow_html=True)
 
 # ===============================================================
-# LONG vs SHORT
+# TABS
 # ===============================================================
-st.markdown('<div class="section-title">LONG vs SHORT</div>', unsafe_allow_html=True)
+tab_overview, tab_charts, tab_trades, tab_journal, tab_ai = st.tabs([
+    "📊 Overview",
+    "📈 Charts",
+    "📋 Trades",
+    "📝 Journal",
+    "🤖 AI Coach",
+])
 
-_type_col = "Type" if "Type" in filtered.columns else "type"
-_long_df = filtered[filtered[_type_col].astype(str).str.lower() == "buy"]
-_short_df = filtered[filtered[_type_col].astype(str).str.lower() == "sell"]
+with tab_overview:
+    st.markdown('<div class="section-title">💰 P&L Snapshot</div>', unsafe_allow_html=True)
+    k1, k2, k3 = st.columns(3)
 
-def _side_stats(side_df):
-    if side_df.empty:
-        return {"count": 0, "wr": 0.0, "pnl": 0.0}
-    n = len(side_df)
-    wins = int((side_df["Profit"] > 0).sum())
-    wr = wins / n * 100.0
-    pnl = float(side_df["Profit"].sum())
-    return {"count": n, "wr": wr, "pnl": pnl}
-
-_L = _side_stats(_long_df)
-_S = _side_stats(_short_df)
-
-ls1, ls2 = st.columns(2)
-
-def _side_panel(label, stats, accent_color):
-    pnl_color = WIN_COLOR if stats["pnl"] >= 0 else LOSS_COLOR
-    sign = "+" if stats["pnl"] >= 0 else ""
-    return f"""
-    <div style="background:rgba(30,35,60,0.5);border:1px solid rgba(212,175,55,0.15);backdrop-filter:blur(12px);border-radius:16px;padding:18px;">
-        <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;
-                    letter-spacing:1px;margin-bottom:12px;">{label}{_h(label)}</div>
-        <div style="display:flex;justify-content:space-between;gap:12px;">
-            <div style="text-align:center;flex:1;">
-                <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Trades{_h('Trades')}</div>
-                <div style="font-size:22px;font-weight:700;color:{accent_color};">{stats['count']}</div>
-            </div>
-            <div style="text-align:center;flex:1;">
-                <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Win Rate{_h('Win Rate')}</div>
-                <div style="font-size:22px;font-weight:700;color:{accent_color};">{stats['wr']:.1f}%</div>
-            </div>
-            <div style="text-align:center;flex:1;">
-                <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Net P&L{_h('Net P&L')}</div>
-                <div style="font-size:22px;font-weight:700;color:{pnl_color};">{sign}${stats['pnl']:.2f}</div>
-            </div>
+    def kpi_html(label, value):
+        color = WIN_COLOR if value >= 0 else LOSS_COLOR
+        sign = "+" if value >= 0 else ""
+        return f"""
+        <div class="kpi-card">
+            <div class="kpi-label">{label}{_h(label)}</div>
+            <div class="kpi-value" style="color:{color};">{sign}${value:.2f}</div>
         </div>
-    </div>"""
+        """
 
-with ls1:
-    st.markdown(_side_panel("LONG (Buy)", _L, WIN_COLOR), unsafe_allow_html=True)
-with ls2:
-    st.markdown(_side_panel("SHORT (Sell)", _S, LOSS_COLOR), unsafe_allow_html=True)
+    with k1:
+        st.markdown(kpi_html("Today", today_pnl), unsafe_allow_html=True)
+    with k2:
+        st.markdown(kpi_html("This Week", week_pnl), unsafe_allow_html=True)
+    with k3:
+        st.markdown(kpi_html("This Month", month_pnl), unsafe_allow_html=True)
 
-# ===============================================================
-# EXIT REASON
-# ===============================================================
-st.markdown('<div class="section-title">EXIT REASON</div>', unsafe_allow_html=True)
+    # ===============================================================
+    # LONG vs SHORT
+    # ===============================================================
+    st.markdown('<div class="section-title">LONG vs SHORT</div>', unsafe_allow_html=True)
 
-if "exit_reason" in filtered.columns and filtered["exit_reason"].notna().any():
-    _er_df = filtered.copy()
-    _er_df["exit_reason"] = _er_df["exit_reason"].fillna("Manual")
+    _type_col = "Type" if "Type" in filtered.columns else "type"
+    _long_df = filtered[filtered[_type_col].astype(str).str.lower() == "buy"]
+    _short_df = filtered[filtered[_type_col].astype(str).str.lower() == "sell"]
 
-    def _er_stats(sub):
-        if sub.empty:
+    def _side_stats(side_df):
+        if side_df.empty:
             return {"count": 0, "wr": 0.0, "pnl": 0.0}
-        return {
-            "count": len(sub),
-            "wr": (sub["Profit"] > 0).sum() / len(sub) * 100.0,
-            "pnl": float(sub["Profit"].sum()),
-        }
+        n = len(side_df)
+        wins = int((side_df["Profit"] > 0).sum())
+        wr = wins / n * 100.0
+        pnl = float(side_df["Profit"].sum())
+        return {"count": n, "wr": wr, "pnl": pnl}
 
-    _tp = _er_stats(_er_df[_er_df["exit_reason"] == "TP"])
-    _sl = _er_stats(_er_df[_er_df["exit_reason"] == "SL"])
-    _mn = _er_stats(_er_df[_er_df["exit_reason"] == "Manual"])
+    _L = _side_stats(_long_df)
+    _S = _side_stats(_short_df)
 
-    er1, er2, er3 = st.columns(3)
+    ls1, ls2 = st.columns(2)
 
-    def _er_panel(label, stats, accent_color):
+    def _side_panel(label, stats, accent_color):
         pnl_color = WIN_COLOR if stats["pnl"] >= 0 else LOSS_COLOR
         sign = "+" if stats["pnl"] >= 0 else ""
         return f"""
         <div style="background:rgba(30,35,60,0.5);border:1px solid rgba(212,175,55,0.15);backdrop-filter:blur(12px);border-radius:16px;padding:18px;">
             <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;
                         letter-spacing:1px;margin-bottom:12px;">{label}{_h(label)}</div>
-            <div style="display:flex;justify-content:space-between;gap:8px;">
+            <div style="display:flex;justify-content:space-between;gap:12px;">
                 <div style="text-align:center;flex:1;">
                     <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Trades{_h('Trades')}</div>
-                    <div style="font-size:20px;font-weight:700;color:{accent_color};">{stats['count']}</div>
+                    <div style="font-size:22px;font-weight:700;color:{accent_color};">{stats['count']}</div>
                 </div>
                 <div style="text-align:center;flex:1;">
                     <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Win Rate{_h('Win Rate')}</div>
-                    <div style="font-size:20px;font-weight:700;color:{accent_color};">{stats['wr']:.1f}%</div>
+                    <div style="font-size:22px;font-weight:700;color:{accent_color};">{stats['wr']:.1f}%</div>
                 </div>
                 <div style="text-align:center;flex:1;">
                     <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Net P&L{_h('Net P&L')}</div>
-                    <div style="font-size:20px;font-weight:700;color:{pnl_color};">{sign}${stats['pnl']:.2f}</div>
+                    <div style="font-size:22px;font-weight:700;color:{pnl_color};">{sign}${stats['pnl']:.2f}</div>
                 </div>
             </div>
         </div>"""
 
-    with er1:
-        st.markdown(_er_panel("TP Hits", _tp, WIN_COLOR), unsafe_allow_html=True)
-    with er2:
-        st.markdown(_er_panel("SL Hits", _sl, LOSS_COLOR), unsafe_allow_html=True)
-    with er3:
-        st.markdown(_er_panel("Manual Close", _mn, accent), unsafe_allow_html=True)
-else:
-    st.caption("No exit reason data yet. Re-upload your MT5 reports to populate this panel.")
+    with ls1:
+        st.markdown(_side_panel("LONG (Buy)", _L, WIN_COLOR), unsafe_allow_html=True)
+    with ls2:
+        st.markdown(_side_panel("SHORT (Sell)", _S, LOSS_COLOR), unsafe_allow_html=True)
 
-# ===============================================================
-# CASH FLOW
-# ===============================================================
-if account_id is not None:
-    _tx_df = db.load_transactions(account_id=account_id)
-else:
-    _tx_df = db.load_transactions()
+    # ===============================================================
+    # EXIT REASON
+    # ===============================================================
+    st.markdown('<div class="section-title">EXIT REASON</div>', unsafe_allow_html=True)
 
-if not _tx_df.empty:
-    st.markdown('<div class="section-title">💵 CASH FLOW</div>', unsafe_allow_html=True)
+    if "exit_reason" in filtered.columns and filtered["exit_reason"].notna().any():
+        _er_df = filtered.copy()
+        _er_df["exit_reason"] = _er_df["exit_reason"].fillna("Manual")
 
-    _deposits = float(_tx_df[_tx_df["amount"] > 0]["amount"].sum())
-    _withdrawals = float(abs(_tx_df[_tx_df["amount"] < 0]["amount"].sum()))
-    _net_deposits = _deposits - _withdrawals
+        def _er_stats(sub):
+            if sub.empty:
+                return {"count": 0, "wr": 0.0, "pnl": 0.0}
+            return {
+                "count": len(sub),
+                "wr": (sub["Profit"] > 0).sum() / len(sub) * 100.0,
+                "pnl": float(sub["Profit"].sum()),
+            }
 
-    _last_bal = _tx_df.iloc[-1]["balance_after"]
-    _current_equity = float(_last_bal) if pd.notna(_last_bal) else _net_deposits
-    _true_return = ((_current_equity - _net_deposits) / _net_deposits * 100) if _net_deposits > 0 else 0.0
+        _tp = _er_stats(_er_df[_er_df["exit_reason"] == "TP"])
+        _sl = _er_stats(_er_df[_er_df["exit_reason"] == "SL"])
+        _mn = _er_stats(_er_df[_er_df["exit_reason"] == "Manual"])
 
-    def _cf_card(label, value_str, color):
-        return f"""
-        <div style="background:rgba(30,35,60,0.5);border:1px solid rgba(212,175,55,0.15);backdrop-filter:blur(12px);border-radius:16px;padding:18px;text-align:center;">
-            <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">{label}</div>
-            <div style="font-size:26px;font-weight:800;color:{color};letter-spacing:-0.5px;">{value_str}</div>
-        </div>"""
+        er1, er2, er3 = st.columns(3)
 
-    cf1, cf2, cf3, cf4 = st.columns(4)
-    with cf1:
-        st.markdown(_cf_card("Total Deposits", f"${_deposits:,.2f}", WIN_COLOR), unsafe_allow_html=True)
-    with cf2:
-        _wcolor = LOSS_COLOR if _withdrawals > 0 else theme['subtext']
-        st.markdown(_cf_card("Total Withdrawals", f"${_withdrawals:,.2f}", _wcolor), unsafe_allow_html=True)
-    with cf3:
-        st.markdown(_cf_card("Net Deposits", f"${_net_deposits:,.2f}", accent), unsafe_allow_html=True)
-    with cf4:
-        _tr_color = WIN_COLOR if _true_return >= 0 else LOSS_COLOR
-        _tr_sign = "+" if _true_return >= 0 else ""
-        st.markdown(_cf_card("True Return", f"{_tr_sign}{_true_return:.2f}%", _tr_color), unsafe_allow_html=True)
+        def _er_panel(label, stats, accent_color):
+            pnl_color = WIN_COLOR if stats["pnl"] >= 0 else LOSS_COLOR
+            sign = "+" if stats["pnl"] >= 0 else ""
+            return f"""
+            <div style="background:rgba(30,35,60,0.5);border:1px solid rgba(212,175,55,0.15);backdrop-filter:blur(12px);border-radius:16px;padding:18px;">
+                <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;
+                            letter-spacing:1px;margin-bottom:12px;">{label}{_h(label)}</div>
+                <div style="display:flex;justify-content:space-between;gap:8px;">
+                    <div style="text-align:center;flex:1;">
+                        <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Trades{_h('Trades')}</div>
+                        <div style="font-size:20px;font-weight:700;color:{accent_color};">{stats['count']}</div>
+                    </div>
+                    <div style="text-align:center;flex:1;">
+                        <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Win Rate{_h('Win Rate')}</div>
+                        <div style="font-size:20px;font-weight:700;color:{accent_color};">{stats['wr']:.1f}%</div>
+                    </div>
+                    <div style="text-align:center;flex:1;">
+                        <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Net P&L{_h('Net P&L')}</div>
+                        <div style="font-size:20px;font-weight:700;color:{pnl_color};">{sign}${stats['pnl']:.2f}</div>
+                    </div>
+                </div>
+            </div>"""
 
-# ===============================================================
-# STREAK TRACKER
-# ===============================================================
-daily_streak = (
-    filtered.assign(day=filtered["Exit_Time"].dt.date)
-    .groupby("day").agg(pnl=("Profit", "sum"))
-    .reset_index()
-    .sort_values("day")
-)
-
-streak_count = 0
-streak_type = None
-
-if not daily_streak.empty:
-    last_sign = 1 if daily_streak.iloc[-1]["pnl"] >= 0 else -1
-    streak_type = "win" if last_sign > 0 else "loss"
-    for i in range(len(daily_streak) - 1, -1, -1):
-        sign = 1 if daily_streak.iloc[i]["pnl"] >= 0 else -1
-        if sign == last_sign:
-            streak_count += 1
-        else:
-            break
-
-st.markdown("<div style='height:14px;'></div>", unsafe_allow_html=True)
-
-if streak_type == "win":
-    streak_html = f'<div class="streak-banner" style="color:{WIN_COLOR};">🔥 {streak_count}-day win streak — keep going!</div>'
-elif streak_type == "loss":
-    streak_html = f'<div class="streak-banner" style="color:{LOSS_COLOR};">❄️ {streak_count}-day loss streak — time to review your rules</div>'
-else:
-    streak_html = '<div class="streak-banner" style="color:{};">No trading days yet</div>'.format(theme['subtext'])
-
-st.markdown(streak_html, unsafe_allow_html=True)
-
-# ===============================================================
-# RADIAL GAUGE DASHBOARD
-# ===============================================================
-st.markdown('<div class="section-title">📈 Performance Summary</div>', unsafe_allow_html=True)
-
-def card_style_css():
-    if card_style == "Filled":
-        return f"background:{theme['card_bg']};border:1px solid {theme['border']};box-shadow:{theme['shadow']};"
+        with er1:
+            st.markdown(_er_panel("TP Hits", _tp, WIN_COLOR), unsafe_allow_html=True)
+        with er2:
+            st.markdown(_er_panel("SL Hits", _sl, LOSS_COLOR), unsafe_allow_html=True)
+        with er3:
+            st.markdown(_er_panel("Manual Close", _mn, accent), unsafe_allow_html=True)
     else:
-        return f"background:transparent;border:1.5px solid {theme['border']};"
+        st.caption("No exit reason data yet. Re-upload your MT5 reports to populate this panel.")
 
-def make_gauge(value, max_value, title, threshold_good):
-    fig = go.Figure(go.Indicator(
-        mode="gauge+number",
-        value=value,
-        number={"font": {"size": 28, "color": theme['text']}},
-        title={"text": title, "font": {"size": 15, "color": theme['text']}},
-        gauge={
-            "axis": {"range": [0, max_value], "tickwidth": 1, "tickcolor": theme['subtext']},
-            "bar": {"color": accent, "thickness": 0.28},
-            "bgcolor": theme['card_bg'],
-            "borderwidth": 2,
-            "bordercolor": theme['border'],
-            "steps": [
-                {"range": [0, threshold_good], "color": "#ffebee" if "Dark" == "Light" else "#3a1a1e"},
-                {"range": [threshold_good, max_value], "color": "#e8f5e9" if "Dark" == "Light" else "#1a3320"},
-            ],
-            "threshold": {
-                "line": {"color": "#1b5e20" if "Dark" == "Light" else "#66bb6a", "width": 3},
-                "thickness": 0.75, "value": threshold_good,
-            },
-        },
-    ))
-    fig.update_layout(height=230, margin=dict(l=15, r=15, t=45, b=10),
-                      paper_bgcolor=theme['bg'], font_color=theme['text'])
-    return fig
+    # ===============================================================
+    # CASH FLOW
+    # ===============================================================
+    if account_id is not None:
+        _tx_df = db.load_transactions(account_id=account_id)
+    else:
+        _tx_df = db.load_transactions()
 
-def make_win_rate_donut(win_rate):
-    fig = go.Figure(go.Pie(
-        values=[win_rate, 100 - win_rate],
-        labels=["Wins", "Losses"],
-        hole=0.72, textinfo="none",
-        marker=dict(colors=[accent, theme['border']]),
-        sort=False, direction="clockwise", rotation=0,
-    ))
-    fig.update_layout(
-        height=230, margin=dict(l=10, r=10, t=45, b=10),
-        paper_bgcolor=theme['bg'], showlegend=False,
-        annotations=[dict(
-            text=f"<b>{win_rate:.1f}%</b><br><span style='font-size:12px;color:{theme['subtext']}'>Win Rate</span>",
-            x=0.5, y=0.5, font=dict(size=22, color=theme['text']), showarrow=False,
-        )],
+    if not _tx_df.empty:
+        st.markdown('<div class="section-title">💵 CASH FLOW</div>', unsafe_allow_html=True)
+
+        _deposits = float(_tx_df[_tx_df["amount"] > 0]["amount"].sum())
+        _withdrawals = float(abs(_tx_df[_tx_df["amount"] < 0]["amount"].sum()))
+        _net_deposits = _deposits - _withdrawals
+
+        _last_bal = _tx_df.iloc[-1]["balance_after"]
+        _current_equity = float(_last_bal) if pd.notna(_last_bal) else _net_deposits
+        _true_return = ((_current_equity - _net_deposits) / _net_deposits * 100) if _net_deposits > 0 else 0.0
+
+        def _cf_card(label, value_str, color):
+            return f"""
+            <div style="background:rgba(30,35,60,0.5);border:1px solid rgba(212,175,55,0.15);backdrop-filter:blur(12px);border-radius:16px;padding:18px;text-align:center;">
+                <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">{label}</div>
+                <div style="font-size:26px;font-weight:800;color:{color};letter-spacing:-0.5px;">{value_str}</div>
+            </div>"""
+
+        cf1, cf2, cf3, cf4 = st.columns(4)
+        with cf1:
+            st.markdown(_cf_card("Total Deposits", f"${_deposits:,.2f}", WIN_COLOR), unsafe_allow_html=True)
+        with cf2:
+            _wcolor = LOSS_COLOR if _withdrawals > 0 else theme['subtext']
+            st.markdown(_cf_card("Total Withdrawals", f"${_withdrawals:,.2f}", _wcolor), unsafe_allow_html=True)
+        with cf3:
+            st.markdown(_cf_card("Net Deposits", f"${_net_deposits:,.2f}", accent), unsafe_allow_html=True)
+        with cf4:
+            _tr_color = WIN_COLOR if _true_return >= 0 else LOSS_COLOR
+            _tr_sign = "+" if _true_return >= 0 else ""
+            st.markdown(_cf_card("True Return", f"{_tr_sign}{_true_return:.2f}%", _tr_color), unsafe_allow_html=True)
+
+    # ===============================================================
+    # STREAK TRACKER
+    # ===============================================================
+    daily_streak = (
+        filtered.assign(day=filtered["Exit_Time"].dt.date)
+        .groupby("day").agg(pnl=("Profit", "sum"))
+        .reset_index()
+        .sort_values("day")
     )
-    return fig
 
-c1, c2, c3, c4 = st.columns(4)
+    streak_count = 0
+    streak_type = None
 
-with c1:
-    st.plotly_chart(_make_transparent(make_win_rate_donut(metrics["win_rate"])), width='stretch')
+    if not daily_streak.empty:
+        last_sign = 1 if daily_streak.iloc[-1]["pnl"] >= 0 else -1
+        streak_type = "win" if last_sign > 0 else "loss"
+        for i in range(len(daily_streak) - 1, -1, -1):
+            sign = 1 if daily_streak.iloc[i]["pnl"] >= 0 else -1
+            if sign == last_sign:
+                streak_count += 1
+            else:
+                break
 
-with c2:
-    pf = min(metrics["profit_factor"], 3)
-    st.plotly_chart(_make_transparent(make_gauge(pf, 3, "Profit Factor", 1.5)), width='stretch')
+    st.markdown("<div style='height:14px;'></div>", unsafe_allow_html=True)
 
-with c3:
-    net = metrics["net_profit"]
-    color = WIN_COLOR if net >= 0 else LOSS_COLOR
-    sign = "+" if net >= 0 else ""
+    if streak_type == "win":
+        streak_html = f'<div class="streak-banner" style="color:{WIN_COLOR};">🔥 {streak_count}-day win streak — keep going!</div>'
+    elif streak_type == "loss":
+        streak_html = f'<div class="streak-banner" style="color:{LOSS_COLOR};">❄️ {streak_count}-day loss streak — time to review your rules</div>'
+    else:
+        streak_html = '<div class="streak-banner" style="color:{};">No trading days yet</div>'.format(theme['subtext'])
+
+    st.markdown(streak_html, unsafe_allow_html=True)
+
+    # ===============================================================
+    # RADIAL GAUGE DASHBOARD
+    # ===============================================================
+    st.markdown('<div class="section-title">📈 Performance Summary</div>', unsafe_allow_html=True)
+
+    def card_style_css():
+        if card_style == "Filled":
+            return f"background:{theme['card_bg']};border:1px solid {theme['border']};box-shadow:{theme['shadow']};"
+        else:
+            return f"background:transparent;border:1.5px solid {theme['border']};"
+
+    def make_gauge(value, max_value, title, threshold_good):
+        fig = go.Figure(go.Indicator(
+            mode="gauge+number",
+            value=value,
+            number={"font": {"size": 28, "color": theme['text']}},
+            title={"text": title, "font": {"size": 15, "color": theme['text']}},
+            gauge={
+                "axis": {"range": [0, max_value], "tickwidth": 1, "tickcolor": theme['subtext']},
+                "bar": {"color": accent, "thickness": 0.28},
+                "bgcolor": theme['card_bg'],
+                "borderwidth": 2,
+                "bordercolor": theme['border'],
+                "steps": [
+                    {"range": [0, threshold_good], "color": "#ffebee" if "Dark" == "Light" else "#3a1a1e"},
+                    {"range": [threshold_good, max_value], "color": "#e8f5e9" if "Dark" == "Light" else "#1a3320"},
+                ],
+                "threshold": {
+                    "line": {"color": "#1b5e20" if "Dark" == "Light" else "#66bb6a", "width": 3},
+                    "thickness": 0.75, "value": threshold_good,
+                },
+            },
+        ))
+        fig.update_layout(height=230, margin=dict(l=15, r=15, t=45, b=10),
+                          paper_bgcolor=theme['bg'], font_color=theme['text'])
+        return fig
+
+    def make_win_rate_donut(win_rate):
+        fig = go.Figure(go.Pie(
+            values=[win_rate, 100 - win_rate],
+            labels=["Wins", "Losses"],
+            hole=0.72, textinfo="none",
+            marker=dict(colors=[accent, theme['border']]),
+            sort=False, direction="clockwise", rotation=0,
+        ))
+        fig.update_layout(
+            height=230, margin=dict(l=10, r=10, t=45, b=10),
+            paper_bgcolor=theme['bg'], showlegend=False,
+            annotations=[dict(
+                text=f"<b>{win_rate:.1f}%</b><br><span style='font-size:12px;color:{theme['subtext']}'>Win Rate</span>",
+                x=0.5, y=0.5, font=dict(size=22, color=theme['text']), showarrow=False,
+            )],
+        )
+        return fig
+
+    c1, c2, c3, c4 = st.columns(4)
+
+    with c1:
+        st.plotly_chart(_make_transparent(make_win_rate_donut(metrics["win_rate"])), width='stretch')
+
+    with c2:
+        pf = min(metrics["profit_factor"], 3)
+        st.plotly_chart(_make_transparent(make_gauge(pf, 3, "Profit Factor", 1.5)), width='stretch')
+
+    with c3:
+        net = metrics["net_profit"]
+        color = WIN_COLOR if net >= 0 else LOSS_COLOR
+        sign = "+" if net >= 0 else ""
+        st.markdown(
+            f"""<div style="{card_style_css()}border-radius:16px;padding:22px;
+                        text-align:center;height:230px;
+                        display:flex;flex-direction:column;justify-content:center;">
+                <div style="font-size:12px;color:{theme['subtext']};letter-spacing:0.5px;
+                            text-transform:uppercase;margin-bottom:8px;">Net P&L{_h('Net P&L')}</div>
+                <div style="font-size:36px;font-weight:800;color:{color};
+                            letter-spacing:-0.5px;">
+                    {sign}${net:.2f}
+                </div>
+            </div>""", unsafe_allow_html=True)
+
+    with c4:
+        st.markdown(
+            f"""<div style="{card_style_css()}border-radius:16px;padding:22px;
+                        text-align:center;height:230px;
+                        display:flex;flex-direction:column;justify-content:center;">
+                <div style="font-size:12px;color:{theme['subtext']};letter-spacing:0.5px;
+                            text-transform:uppercase;margin-bottom:8px;">Total Trades{_h('Total Trades')}</div>
+                <div style="font-size:36px;font-weight:800;color:{accent};
+                            letter-spacing:-0.5px;">
+                    {metrics['total_trades']}
+                </div>
+            </div>""", unsafe_allow_html=True)
+
     st.markdown(
-        f"""<div style="{card_style_css()}border-radius:16px;padding:22px;
-                    text-align:center;height:230px;
-                    display:flex;flex-direction:column;justify-content:center;">
-            <div style="font-size:12px;color:{theme['subtext']};letter-spacing:0.5px;
-                        text-transform:uppercase;margin-bottom:8px;">Net P&L{_h('Net P&L')}</div>
-            <div style="font-size:36px;font-weight:800;color:{color};
-                        letter-spacing:-0.5px;">
-                {sign}${net:.2f}
+        f"""<div style="{card_style_css()}border-radius:16px;padding:18px;
+                    display:flex;justify-content:space-around;margin-top:10px;">
+            <div style="text-align:center;">
+                <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;
+                            letter-spacing:0.5px;">Avg Win{_h('Avg Win')}</div>
+                <div style="font-size:20px;font-weight:700;color:{WIN_COLOR};">
+                    ${metrics['avg_win']}</div>
+            </div>
+            <div style="text-align:center;">
+                <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;
+                            letter-spacing:0.5px;">Avg Loss{_h('Avg Loss')}</div>
+                <div style="font-size:20px;font-weight:700;color:{LOSS_COLOR};">
+                    ${metrics['avg_loss']}</div>
+            </div>
+            <div style="text-align:center;">
+                <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;
+                            letter-spacing:0.5px;">Largest Win{_h('Largest Win')}</div>
+                <div style="font-size:20px;font-weight:700;color:{WIN_COLOR};">
+                    ${metrics['largest_win']}</div>
+            </div>
+            <div style="text-align:center;">
+                <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;
+                            letter-spacing:0.5px;">Largest Loss{_h('Largest Loss')}</div>
+                <div style="font-size:20px;font-weight:700;color:{LOSS_COLOR};">
+                    ${metrics['largest_loss']}</div>
             </div>
         </div>""", unsafe_allow_html=True)
 
-with c4:
-    st.markdown(
-        f"""<div style="{card_style_css()}border-radius:16px;padding:22px;
-                    text-align:center;height:230px;
-                    display:flex;flex-direction:column;justify-content:center;">
-            <div style="font-size:12px;color:{theme['subtext']};letter-spacing:0.5px;
-                        text-transform:uppercase;margin-bottom:8px;">Total Trades{_h('Total Trades')}</div>
-            <div style="font-size:36px;font-weight:800;color:{accent};
-                        letter-spacing:-0.5px;">
-                {metrics['total_trades']}
-            </div>
-        </div>""", unsafe_allow_html=True)
+    # ===============================================================
+    # R-MULTIPLE
+    # ===============================================================
+    st.markdown('<div class="section-title">R-MULTIPLE</div>', unsafe_allow_html=True)
 
-st.markdown(
-    f"""<div style="{card_style_css()}border-radius:16px;padding:18px;
-                display:flex;justify-content:space-around;margin-top:10px;">
-        <div style="text-align:center;">
-            <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;
-                        letter-spacing:0.5px;">Avg Win{_h('Avg Win')}</div>
-            <div style="font-size:20px;font-weight:700;color:{WIN_COLOR};">
-                ${metrics['avg_win']}</div>
-        </div>
-        <div style="text-align:center;">
-            <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;
-                        letter-spacing:0.5px;">Avg Loss{_h('Avg Loss')}</div>
-            <div style="font-size:20px;font-weight:700;color:{LOSS_COLOR};">
-                ${metrics['avg_loss']}</div>
-        </div>
-        <div style="text-align:center;">
-            <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;
-                        letter-spacing:0.5px;">Largest Win{_h('Largest Win')}</div>
-            <div style="font-size:20px;font-weight:700;color:{WIN_COLOR};">
-                ${metrics['largest_win']}</div>
-        </div>
-        <div style="text-align:center;">
-            <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;
-                        letter-spacing:0.5px;">Largest Loss{_h('Largest Loss')}</div>
-            <div style="font-size:20px;font-weight:700;color:{LOSS_COLOR};">
-                ${metrics['largest_loss']}</div>
-        </div>
-    </div>""", unsafe_allow_html=True)
-
-# ===============================================================
-# R-MULTIPLE
-# ===============================================================
-st.markdown('<div class="section-title">R-MULTIPLE</div>', unsafe_allow_html=True)
-
-def _lookup_sl(row):
-    """Find the SL column regardless of case."""
-    for k in ("SL", "sl", "S_L", "s_l"):
-        if k in row.index:
-            return row[k]
-    return None
-
-def _r_mult(row):
-    try:
-        entry = float(row["Entry_Price"])
-        sl_raw = _lookup_sl(row)
-        if sl_raw is None or pd.isna(sl_raw) or float(sl_raw) == 0:
-            return None
-        sl = float(sl_raw)
-        vol = float(row["Volume"])
-        profit = float(row["Profit"])
-        if entry == 0 or vol == 0:
-            return None
-        risk = abs(entry - sl) * vol * 100
-        # R_CAP_APPLIED: filter trailing-stop artifacts
-        if risk < 3.0:
-            return None
-        r = profit / risk
-        # Cap at ±10R — anything higher is a trailing-stop artifact, not a real edge
-        if r > 10.0:
-            r = 10.0
-        elif r < -10.0:
-            r = -10.0
-        return r
-    except (TypeError, ValueError, KeyError):
+    def _lookup_sl(row):
+        """Find the SL column regardless of case."""
+        for k in ("SL", "sl", "S_L", "s_l"):
+            if k in row.index:
+                return row[k]
         return None
 
-_r_df = filtered.copy()
-_r_df["r_mult"] = _r_df.apply(_r_mult, axis=1)
-_r_valid = _r_df[_r_df["r_mult"].notna()].copy()
+    def _r_mult(row):
+        try:
+            entry = float(row["Entry_Price"])
+            sl_raw = _lookup_sl(row)
+            if sl_raw is None or pd.isna(sl_raw) or float(sl_raw) == 0:
+                return None
+            sl = float(sl_raw)
+            vol = float(row["Volume"])
+            profit = float(row["Profit"])
+            if entry == 0 or vol == 0:
+                return None
+            risk = abs(entry - sl) * vol * 100
+            # R_CAP_APPLIED: filter trailing-stop artifacts
+            if risk < 3.0:
+                return None
+            r = profit / risk
+            # Cap at ±10R — anything higher is a trailing-stop artifact, not a real edge
+            if r > 10.0:
+                r = 10.0
+            elif r < -10.0:
+                r = -10.0
+            return r
+        except (TypeError, ValueError, KeyError):
+            return None
 
-if _r_valid.empty:
-    st.caption("No R-Multiple data yet. Trades need a Stop Loss value to compute R.")
-else:
-    _wins_r = _r_valid[_r_valid["r_mult"] > 0]["r_mult"]
-    _loss_r = _r_valid[_r_valid["r_mult"] < 0]["r_mult"]
-    _avg_win_r = float(_wins_r.mean()) if not _wins_r.empty else 0.0
-    _avg_loss_r = float(_loss_r.mean()) if not _loss_r.empty else 0.0
-    _best_r = float(_r_valid["r_mult"].max())
-    _worst_r = float(_r_valid["r_mult"].min())
-    _n = len(_r_valid)
-    _p_win = len(_wins_r) / _n if _n else 0.0
-    _p_loss = len(_loss_r) / _n if _n else 0.0
-    _expectancy = _p_win * _avg_win_r + _p_loss * _avg_loss_r
+    _r_df = filtered.copy()
+    _r_df["r_mult"] = _r_df.apply(_r_mult, axis=1)
+    _r_valid = _r_df[_r_df["r_mult"].notna()].copy()
 
-    r1, r2, r3, r4 = st.columns(4)
-
-    def _r_card(label, value):
-        color = WIN_COLOR if value >= 0 else LOSS_COLOR
-        sign = "+" if value >= 0 else ""
-        return f"""
-        <div style="background:rgba(30,35,60,0.5);border:1px solid rgba(212,175,55,0.15);backdrop-filter:blur(12px);border-radius:16px;padding:18px;text-align:center;">
-            <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">{label}{_h(label)}</div>
-            <div style="font-size:28px;font-weight:800;color:{color};letter-spacing:-0.5px;">{sign}{value:.2f}R</div>
-        </div>"""
-
-    with r1:
-        st.markdown(_r_card("Avg Win", _avg_win_r), unsafe_allow_html=True)
-    with r2:
-        st.markdown(_r_card("Avg Loss", _avg_loss_r), unsafe_allow_html=True)
-    with r3:
-        st.markdown(_r_card("Best", _best_r), unsafe_allow_html=True)
-    with r4:
-        st.markdown(_r_card("Worst", _worst_r), unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    _exp_color = WIN_COLOR if _expectancy >= 0 else LOSS_COLOR
-    _exp_sign = "+" if _expectancy >= 0 else ""
-    if _expectancy > 0.3:
-        _verdict = "Strong positive expectancy — repeatable edge"
-    elif _expectancy > 0.1:
-        _verdict = "Positive expectancy — good but improvable"
-    elif _expectancy > 0:
-        _verdict = "Marginal edge — one bad session can wipe it"
+    if _r_valid.empty:
+        st.caption("No R-Multiple data yet. Trades need a Stop Loss value to compute R.")
     else:
-        _verdict = "Negative expectancy — system loses money over time"
+        _wins_r = _r_valid[_r_valid["r_mult"] > 0]["r_mult"]
+        _loss_r = _r_valid[_r_valid["r_mult"] < 0]["r_mult"]
+        _avg_win_r = float(_wins_r.mean()) if not _wins_r.empty else 0.0
+        _avg_loss_r = float(_loss_r.mean()) if not _loss_r.empty else 0.0
+        _best_r = float(_r_valid["r_mult"].max())
+        _worst_r = float(_r_valid["r_mult"].min())
+        _n = len(_r_valid)
+        _p_win = len(_wins_r) / _n if _n else 0.0
+        _p_loss = len(_loss_r) / _n if _n else 0.0
+        _expectancy = _p_win * _avg_win_r + _p_loss * _avg_loss_r
 
-    st.markdown(f"""
-    <div style="background:rgba(30,35,60,0.5);border:1px solid rgba(212,175,55,0.15);backdrop-filter:blur(12px);border-radius:16px;padding:18px;">
-        <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;text-align:center;">Expectancy per Trade{_h('Expectancy per Trade')}</div>
-        <div style="font-size:36px;font-weight:800;color:{_exp_color};text-align:center;letter-spacing:-0.5px;">{_exp_sign}{_expectancy:.2f}R</div>
-        <div style="font-size:13px;color:{theme['subtext']};text-align:center;margin-top:6px;">Based on {_n} trades with SL · {_verdict}</div>
-    </div>""", unsafe_allow_html=True)
+        r1, r2, r3, r4 = st.columns(4)
 
-# ===============================================================
-# R-MULTIPLE BREAKDOWN
-# ===============================================================
-_r_break = filtered.copy()
-_r_break["r_mult"] = _r_break.apply(_r_mult, axis=1)
-_r_break = _r_break[_r_break["r_mult"].notna()].copy()
+        def _r_card(label, value):
+            color = WIN_COLOR if value >= 0 else LOSS_COLOR
+            sign = "+" if value >= 0 else ""
+            return f"""
+            <div style="background:rgba(30,35,60,0.5);border:1px solid rgba(212,175,55,0.15);backdrop-filter:blur(12px);border-radius:16px;padding:18px;text-align:center;">
+                <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">{label}{_h(label)}</div>
+                <div style="font-size:28px;font-weight:800;color:{color};letter-spacing:-0.5px;">{sign}{value:.2f}R</div>
+            </div>"""
 
-if not _r_break.empty:
-    st.markdown('<div class="section-title" style="margin-top:1.4rem;">R-MULTIPLE BREAKDOWN</div>', unsafe_allow_html=True)
+        with r1:
+            st.markdown(_r_card("Avg Win", _avg_win_r), unsafe_allow_html=True)
+        with r2:
+            st.markdown(_r_card("Avg Loss", _avg_loss_r), unsafe_allow_html=True)
+        with r3:
+            st.markdown(_r_card("Best", _best_r), unsafe_allow_html=True)
+        with r4:
+            st.markdown(_r_card("Worst", _worst_r), unsafe_allow_html=True)
 
-    def _wr_text(wins, total):
-        if not total:
-            return "—"
-        if st.session_state.get("_wr_mode") == "count":
-            return f"{wins} / {total}"
-        return f"{wins / total * 100:.0f}%"
+        st.markdown("<br>", unsafe_allow_html=True)
 
-    def _r_card(label, avg_r, count, wins, total, net_pnl=0.0):
-        color = WIN_COLOR if avg_r >= 0 else LOSS_COLOR
-        sign = "+" if avg_r >= 0 else ""
-        pnl_color = WIN_COLOR if net_pnl >= 0 else LOSS_COLOR
-        pnl_sign = "+" if net_pnl >= 0 else ""
-        return f"""
-        <div style="background:rgba(30,35,60,0.5);border:1px solid rgba(212,175,55,0.15);backdrop-filter:blur(12px);border-radius:16px;padding:18px;">
-            <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">{label}{_h(label)}</div>
-            <div style="display:flex;justify-content:space-around;gap:6px;">
-                <div style="text-align:center;flex:1;">
-                    <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Avg R{_h('Avg R')}</div>
-                    <div style="font-size:20px;font-weight:700;color:{color};">{sign}{avg_r:.2f}R</div>
-                </div>
-                <div style="text-align:center;flex:1;">
-                    <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Trades{_h('Trades')}</div>
-                    <div style="font-size:20px;font-weight:700;color:{accent};">{count}</div>
-                </div>
-                <div style="text-align:center;flex:1;">
-                    <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Win Rate{_h('Win Rate')}</div>
-                    <div style="font-size:20px;font-weight:700;color:{accent};">{_wr_text(wins, total)}</div>
-                </div>
-                <div style="text-align:center;flex:1;">
-                    <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Net P&L{_h('Net P&L')}</div>
-                    <div style="font-size:20px;font-weight:700;color:{pnl_color};">{pnl_sign}${net_pnl:.0f}</div>
-                </div>
-            </div>
-        </div>"""
-
-    _type_col = "Type" if "Type" in filtered.columns else "type"
-    _long_r = _r_break[_r_break[_type_col].astype(str).str.lower() == "buy"]["r_mult"]
-    _short_r = _r_break[_r_break[_type_col].astype(str).str.lower() == "sell"]["r_mult"]
-
-    _d1, _d2 = st.columns(2)
-    with _d1:
-        st.markdown(_r_card("R BY DIRECTION · Long (Buy)",
-                            float(_long_r.mean()) if not _long_r.empty else 0.0,
-                            len(_long_r),
-                            int((_long_r > 0).sum()),
-                            len(_long_r),
-                            float(_r_break[_r_break[_type_col].astype(str).str.lower() == "buy"]["Profit"].sum())), unsafe_allow_html=True)
-    with _d2:
-        st.markdown(_r_card("R BY DIRECTION · Short (Sell)",
-                            float(_short_r.mean()) if not _short_r.empty else 0.0,
-                            len(_short_r),
-                            int((_short_r > 0).sum()),
-                            len(_short_r),
-                            float(_r_break[_r_break[_type_col].astype(str).str.lower() == "sell"]["Profit"].sum())), unsafe_allow_html=True)
-
-    if "exit_reason" in _r_break.columns:
-        _tp_r = _r_break[_r_break["exit_reason"] == "TP"]["r_mult"]
-        _sl_r = _r_break[_r_break["exit_reason"] == "SL"]["r_mult"]
-        _mn_r = _r_break[_r_break["exit_reason"] == "Manual"]["r_mult"]
-
-        st.markdown('<div class="section-title" style="margin-top:1.2rem;">R BY EXIT REASON</div>', unsafe_allow_html=True)
-        _e1, _e2, _e3 = st.columns(3)
-        with _e1:
-            st.markdown(_r_card("TP Hits",
-                                float(_tp_r.mean()) if not _tp_r.empty else 0.0,
-                                len(_tp_r),
-                                int((_tp_r > 0).sum()),
-                                len(_tp_r),
-                                float(_r_break[_r_break["exit_reason"] == "TP"]["Profit"].sum())), unsafe_allow_html=True)
-        with _e2:
-            st.markdown(_r_card("SL Hits",
-                                float(_sl_r.mean()) if not _sl_r.empty else 0.0,
-                                len(_sl_r),
-                                int((_sl_r > 0).sum()),
-                                len(_sl_r),
-                                float(_r_break[_r_break["exit_reason"] == "SL"]["Profit"].sum())), unsafe_allow_html=True)
-        with _e3:
-            st.markdown(_r_card("Manual",
-                                float(_mn_r.mean()) if not _mn_r.empty else 0.0,
-                                len(_mn_r),
-                                int((_mn_r > 0).sum()),
-                                len(_mn_r),
-                                float(_r_break[_r_break["exit_reason"] == "Manual"]["Profit"].sum())), unsafe_allow_html=True)
-
-# ===============================================================
-# P&L WATERFALL (daily bars)
-# ===============================================================
-st.markdown('<div class="section-title">📊 Daily P&L</div>', unsafe_allow_html=True)
-
-waterfall = (
-    filtered.assign(day=filtered["Exit_Time"].dt.date)
-    .groupby("day").agg(pnl=("Profit", "sum"))
-    .reset_index()
-    .sort_values("day")
-)
-waterfall["day"] = pd.to_datetime(waterfall["day"])
-waterfall["color"] = waterfall["pnl"].apply(lambda x: WIN_COLOR if x >= 0 else LOSS_COLOR)
-
-fig_wf = go.Figure(data=go.Bar(
-    x=waterfall["day"],
-    y=waterfall["pnl"],
-    marker=dict(color=waterfall["color"]),
-    text=[f"${v:.0f}" for v in waterfall["pnl"]],
-    textposition="outside",
-    textfont=dict(size=11, color=theme['text']),
-    hovertemplate="<b>%{x|%b %d}</b><br>P&L: $%{y:.2f}<extra></extra>",
-))
-fig_wf.update_layout(
-    height=320,
-    margin=dict(l=10, r=10, t=20, b=30),
-    paper_bgcolor=theme['bg'], plot_bgcolor=theme['bg'],
-    font_color=theme['text'], showlegend=False,
-    xaxis=dict(gridcolor=theme['border']),
-    yaxis=dict(gridcolor=theme['border'], title="P&L ($)"),
-    bargap=0.35,
-)
-st.plotly_chart(_make_transparent(fig_wf), width='stretch')
-
-# ===============================================================
-# EQUITY CURVE
-# ===============================================================
-st.markdown('<div class="section-title">📉 Equity Curve</div>', unsafe_allow_html=True)
-df_sorted = filtered.sort_values("Exit_Time").copy()
-df_sorted["Cumulative_PnL"] = df_sorted["Profit"].cumsum()
-
-eq_fig = go.Figure()
-eq_fig.add_trace(go.Scatter(
-    x=df_sorted["Exit_Time"], y=df_sorted["Cumulative_PnL"],
-    mode="lines", line=dict(color=theme['equity_line'], width=2.5),
-    fill="tozeroy",
-    fillcolor=f"rgba(41,98,255,0.10)" if "Dark" == "Light" else "rgba(100,181,246,0.15)",
-))
-eq_fig.update_layout(
-    height=320, margin=dict(l=10, r=10, t=10, b=10),
-    paper_bgcolor=theme['bg'], plot_bgcolor=theme['bg'],
-    font_color=theme['text'],
-    xaxis=dict(gridcolor=theme['border']),
-    yaxis=dict(gridcolor=theme['border']),
-)
-st.plotly_chart(_make_transparent(eq_fig), width='stretch')
-
-# ===============================================================
-# CALENDAR
-# ===============================================================
-st.markdown('<div class="section-title">📅 Monthly P&L Calendar</div>', unsafe_allow_html=True)
-
-daily = (filtered.assign(day=filtered["Exit_Time"].dt.date)
-         .groupby("day").agg(daily_pnl=("Profit", "sum"), trades=("Profit", "count"))
-         .reset_index())
-daily["day"] = pd.to_datetime(daily["day"])
-
-if not daily.empty:
-    months = sorted(daily["day"].dt.to_period("M").unique(), reverse=True)
-    month_options = [str(m) for m in months]
-    selected_month = st.selectbox("Month", month_options, index=0)
-    selected_period = pd.Period(selected_month, freq="M")
-else:
-    selected_period = pd.Period(datetime.now(), freq="M")
-
-month_start = selected_period.to_timestamp()
-days_in_month = monthrange(month_start.year, month_start.month)[1]
-month_end = month_start + timedelta(days=days_in_month)
-month_daily = daily[(daily["day"] >= month_start) & (daily["day"] < month_end)]
-pnl_map = {row["day"].day: (row["daily_pnl"], row["trades"]) for _, row in month_daily.iterrows()}
-
-first_weekday = month_start.weekday()
-z_values, text_values, hover_text = [], [], []
-max_abs = max(abs(month_daily["daily_pnl"]).max(), 1) if not month_daily.empty else 1
-
-for week in range(6):
-    row_z, row_text, row_hover = [], [], []
-    for dow in range(7):
-        day_num = week * 7 + dow - first_weekday + 1
-        if day_num < 1 or day_num > days_in_month:
-            row_z.append(None); row_text.append(""); row_hover.append("")
+        _exp_color = WIN_COLOR if _expectancy >= 0 else LOSS_COLOR
+        _exp_sign = "+" if _expectancy >= 0 else ""
+        if _expectancy > 0.3:
+            _verdict = "Strong positive expectancy — repeatable edge"
+        elif _expectancy > 0.1:
+            _verdict = "Positive expectancy — good but improvable"
+        elif _expectancy > 0:
+            _verdict = "Marginal edge — one bad session can wipe it"
         else:
-            if day_num in pnl_map:
-                pnl, cnt = pnl_map[day_num]
-                row_z.append(pnl)
-                row_text.append(f"{day_num}<br><b>${pnl:.0f}</b><br>{cnt} trades")
-                row_hover.append(f"Day {day_num}: ${pnl:.2f} ({cnt} trades)")
-            else:
-                row_z.append(0)
-                row_text.append(f"{day_num}<br>—")
-                row_hover.append(f"Day {day_num}: no trades")
-    z_values.append(row_z); text_values.append(row_text); hover_text.append(row_hover)
+            _verdict = "Negative expectancy — system loses money over time"
 
-fig = go.Figure(data=go.Heatmap(
-    z=z_values, text=text_values, texttemplate="%{text}",
-    textfont={"size": 14, "color": theme['text']},
-    hoverinfo="text", hovertext=hover_text,
-    colorscale=[
-        [0.0, cal_colors["neg_dark"]], [0.25, cal_colors["neg_light"]],
-        [0.5, "#1a1f2e"],
-        [0.75, cal_colors["pos_light"]], [1.0, cal_colors["pos_dark"]],
-    ],
-    zmid=0, zmin=-max_abs, zmax=max_abs, showscale=True, xgap=3, ygap=3,
-))
-fig.update_layout(
-    height=500,
-    xaxis=dict(tickmode="array", tickvals=list(range(7)),
-               ticktext=["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-               side="top", tickfont=dict(size=14, color=theme['text'])),
-    yaxis=dict(showticklabels=False, autorange="reversed"),
-    margin=dict(l=20, r=20, t=50, b=20),
-    plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-    font_color="#d8dbe5",
-)
-st.plotly_chart(_make_transparent(fig), width='stretch')
+        st.markdown(f"""
+        <div style="background:rgba(30,35,60,0.5);border:1px solid rgba(212,175,55,0.15);backdrop-filter:blur(12px);border-radius:16px;padding:18px;">
+            <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;text-align:center;">Expectancy per Trade{_h('Expectancy per Trade')}</div>
+            <div style="font-size:36px;font-weight:800;color:{_exp_color};text-align:center;letter-spacing:-0.5px;">{_exp_sign}{_expectancy:.2f}R</div>
+            <div style="font-size:13px;color:{theme['subtext']};text-align:center;margin-top:6px;">Based on {_n} trades with SL · {_verdict}</div>
+        </div>""", unsafe_allow_html=True)
 
-if not month_daily.empty:
-    month_total = month_daily["daily_pnl"].sum()
-    total_trades = int(month_daily["trades"].sum())
-    green_days = int((month_daily["daily_pnl"] > 0).sum())
-    red_days = int((month_daily["daily_pnl"] < 0).sum())
-    st.caption(f"**{selected_month}** — Total: **${month_total:.2f}** | "
-               f"Trades: **{total_trades}** | Green days: **{green_days}** | Red days: **{red_days}**")
+    # ===============================================================
+    # R-MULTIPLE BREAKDOWN
+    # ===============================================================
+    _r_break = filtered.copy()
+    _r_break["r_mult"] = _r_break.apply(_r_mult, axis=1)
+    _r_break = _r_break[_r_break["r_mult"].notna()].copy()
 
-# ===============================================================
-# COLORED TRADE LOG
-# ===============================================================
-st.markdown(f'<div class="section-title">📋 Trade Log ({len(filtered)} trades)</div>', unsafe_allow_html=True)
+    if not _r_break.empty:
+        st.markdown('<div class="section-title" style="margin-top:1.4rem;">R-MULTIPLE BREAKDOWN</div>', unsafe_allow_html=True)
 
-display_df = filtered[[
-    "Entry_Time", "Exit_Time", "Symbol", "Type",
-    "Volume", "Entry_Price", "Exit_Price", "Profit", "Hold_Time_Min"
-]].copy()
+        def _wr_text(wins, total):
+            if not total:
+                return "—"
+            if st.session_state.get("_wr_mode") == "count":
+                return f"{wins} / {total}"
+            return f"{wins / total * 100:.0f}%"
 
-display_df["Entry_Time"] = display_df["Entry_Time"].dt.strftime("%Y-%m-%d %H:%M")
-display_df["Exit_Time"] = display_df["Exit_Time"].dt.strftime("%Y-%m-%d %H:%M")
-display_df["Hold_Time_Min"] = display_df["Hold_Time_Min"].round(1)
+        def _r_card(label, avg_r, count, wins, total, net_pnl=0.0):
+            color = WIN_COLOR if avg_r >= 0 else LOSS_COLOR
+            sign = "+" if avg_r >= 0 else ""
+            pnl_color = WIN_COLOR if net_pnl >= 0 else LOSS_COLOR
+            pnl_sign = "+" if net_pnl >= 0 else ""
+            return f"""
+            <div style="background:rgba(30,35,60,0.5);border:1px solid rgba(212,175,55,0.15);backdrop-filter:blur(12px);border-radius:16px;padding:18px;">
+                <div style="font-size:12px;color:{theme['subtext']};text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;">{label}{_h(label)}</div>
+                <div style="display:flex;justify-content:space-around;gap:6px;">
+                    <div style="text-align:center;flex:1;">
+                        <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Avg R{_h('Avg R')}</div>
+                        <div style="font-size:20px;font-weight:700;color:{color};">{sign}{avg_r:.2f}R</div>
+                    </div>
+                    <div style="text-align:center;flex:1;">
+                        <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Trades{_h('Trades')}</div>
+                        <div style="font-size:20px;font-weight:700;color:{accent};">{count}</div>
+                    </div>
+                    <div style="text-align:center;flex:1;">
+                        <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Win Rate{_h('Win Rate')}</div>
+                        <div style="font-size:20px;font-weight:700;color:{accent};">{_wr_text(wins, total)}</div>
+                    </div>
+                    <div style="text-align:center;flex:1;">
+                        <div style="font-size:11px;color:{theme['subtext']};text-transform:uppercase;">Net P&L{_h('Net P&L')}</div>
+                        <div style="font-size:20px;font-weight:700;color:{pnl_color};">{pnl_sign}${net_pnl:.0f}</div>
+                    </div>
+                </div>
+            </div>"""
 
-def style_trade_log(row):
-    pnl = row["Profit"]
-    if pnl > 0:
-        bg = "rgba(38,166,154,0.12)" if "Dark" == "Light" else "rgba(38,166,154,0.18)"
-        color = WIN_COLOR
-    elif pnl < 0:
-        bg = "rgba(239,83,80,0.12)" if "Dark" == "Light" else "rgba(239,83,80,0.18)"
-        color = LOSS_COLOR
+        _type_col = "Type" if "Type" in filtered.columns else "type"
+        _long_r = _r_break[_r_break[_type_col].astype(str).str.lower() == "buy"]["r_mult"]
+        _short_r = _r_break[_r_break[_type_col].astype(str).str.lower() == "sell"]["r_mult"]
+
+        _d1, _d2 = st.columns(2)
+        with _d1:
+            st.markdown(_r_card("R BY DIRECTION · Long (Buy)",
+                                float(_long_r.mean()) if not _long_r.empty else 0.0,
+                                len(_long_r),
+                                int((_long_r > 0).sum()),
+                                len(_long_r),
+                                float(_r_break[_r_break[_type_col].astype(str).str.lower() == "buy"]["Profit"].sum())), unsafe_allow_html=True)
+        with _d2:
+            st.markdown(_r_card("R BY DIRECTION · Short (Sell)",
+                                float(_short_r.mean()) if not _short_r.empty else 0.0,
+                                len(_short_r),
+                                int((_short_r > 0).sum()),
+                                len(_short_r),
+                                float(_r_break[_r_break[_type_col].astype(str).str.lower() == "sell"]["Profit"].sum())), unsafe_allow_html=True)
+
+        if "exit_reason" in _r_break.columns:
+            _tp_r = _r_break[_r_break["exit_reason"] == "TP"]["r_mult"]
+            _sl_r = _r_break[_r_break["exit_reason"] == "SL"]["r_mult"]
+            _mn_r = _r_break[_r_break["exit_reason"] == "Manual"]["r_mult"]
+
+            st.markdown('<div class="section-title" style="margin-top:1.2rem;">R BY EXIT REASON</div>', unsafe_allow_html=True)
+            _e1, _e2, _e3 = st.columns(3)
+            with _e1:
+                st.markdown(_r_card("TP Hits",
+                                    float(_tp_r.mean()) if not _tp_r.empty else 0.0,
+                                    len(_tp_r),
+                                    int((_tp_r > 0).sum()),
+                                    len(_tp_r),
+                                    float(_r_break[_r_break["exit_reason"] == "TP"]["Profit"].sum())), unsafe_allow_html=True)
+            with _e2:
+                st.markdown(_r_card("SL Hits",
+                                    float(_sl_r.mean()) if not _sl_r.empty else 0.0,
+                                    len(_sl_r),
+                                    int((_sl_r > 0).sum()),
+                                    len(_sl_r),
+                                    float(_r_break[_r_break["exit_reason"] == "SL"]["Profit"].sum())), unsafe_allow_html=True)
+            with _e3:
+                st.markdown(_r_card("Manual",
+                                    float(_mn_r.mean()) if not _mn_r.empty else 0.0,
+                                    len(_mn_r),
+                                    int((_mn_r > 0).sum()),
+                                    len(_mn_r),
+                                    float(_r_break[_r_break["exit_reason"] == "Manual"]["Profit"].sum())), unsafe_allow_html=True)
+
+    # ===============================================================
+    # P&L WATERFALL (daily bars)
+    # ===============================================================
+with tab_charts:
+    st.markdown('<div class="section-title">📊 Daily P&L</div>', unsafe_allow_html=True)
+
+    waterfall = (
+        filtered.assign(day=filtered["Exit_Time"].dt.date)
+        .groupby("day").agg(pnl=("Profit", "sum"))
+        .reset_index()
+        .sort_values("day")
+    )
+    waterfall["day"] = pd.to_datetime(waterfall["day"])
+    waterfall["color"] = waterfall["pnl"].apply(lambda x: WIN_COLOR if x >= 0 else LOSS_COLOR)
+
+    fig_wf = go.Figure(data=go.Bar(
+        x=waterfall["day"],
+        y=waterfall["pnl"],
+        marker=dict(color=waterfall["color"]),
+        text=[f"${v:.0f}" for v in waterfall["pnl"]],
+        textposition="outside",
+        textfont=dict(size=11, color=theme['text']),
+        hovertemplate="<b>%{x|%b %d}</b><br>P&L: $%{y:.2f}<extra></extra>",
+    ))
+    fig_wf.update_layout(
+        height=320,
+        margin=dict(l=10, r=10, t=20, b=30),
+        paper_bgcolor=theme['bg'], plot_bgcolor=theme['bg'],
+        font_color=theme['text'], showlegend=False,
+        xaxis=dict(gridcolor=theme['border']),
+        yaxis=dict(gridcolor=theme['border'], title="P&L ($)"),
+        bargap=0.35,
+    )
+    st.plotly_chart(_make_transparent(fig_wf), width='stretch')
+
+    # ===============================================================
+    # EQUITY CURVE
+    # ===============================================================
+    st.markdown('<div class="section-title">📉 Equity Curve</div>', unsafe_allow_html=True)
+    df_sorted = filtered.sort_values("Exit_Time").copy()
+    df_sorted["Cumulative_PnL"] = df_sorted["Profit"].cumsum()
+
+    eq_fig = go.Figure()
+    eq_fig.add_trace(go.Scatter(
+        x=df_sorted["Exit_Time"], y=df_sorted["Cumulative_PnL"],
+        mode="lines", line=dict(color=theme['equity_line'], width=2.5),
+        fill="tozeroy",
+        fillcolor=f"rgba(41,98,255,0.10)" if "Dark" == "Light" else "rgba(100,181,246,0.15)",
+    ))
+    eq_fig.update_layout(
+        height=320, margin=dict(l=10, r=10, t=10, b=10),
+        paper_bgcolor=theme['bg'], plot_bgcolor=theme['bg'],
+        font_color=theme['text'],
+        xaxis=dict(gridcolor=theme['border']),
+        yaxis=dict(gridcolor=theme['border']),
+    )
+    st.plotly_chart(_make_transparent(eq_fig), width='stretch')
+
+    # ===============================================================
+    # CALENDAR
+    # ===============================================================
+    st.markdown('<div class="section-title">📅 Monthly P&L Calendar</div>', unsafe_allow_html=True)
+
+    daily = (filtered.assign(day=filtered["Exit_Time"].dt.date)
+             .groupby("day").agg(daily_pnl=("Profit", "sum"), trades=("Profit", "count"))
+             .reset_index())
+    daily["day"] = pd.to_datetime(daily["day"])
+
+    if not daily.empty:
+        months = sorted(daily["day"].dt.to_period("M").unique(), reverse=True)
+        month_options = [str(m) for m in months]
+        selected_month = st.selectbox("Month", month_options, index=0)
+        selected_period = pd.Period(selected_month, freq="M")
     else:
-        bg = theme['card_bg']; color = theme['text']
-    return [f"background-color:{bg};color:{color};font-weight:600;" if col == "Profit"
-            else f"background-color:{bg};color:{theme['text']};"
-            for col in row.index]
+        selected_period = pd.Period(datetime.now(), freq="M")
 
-styled = display_df.style.apply(style_trade_log, axis=1).format({"Profit": "${:.2f}"})
-st.dataframe(styled, width='stretch', height=420)
+    month_start = selected_period.to_timestamp()
+    days_in_month = monthrange(month_start.year, month_start.month)[1]
+    month_end = month_start + timedelta(days=days_in_month)
+    month_daily = daily[(daily["day"] >= month_start) & (daily["day"] < month_end)]
+    pnl_map = {row["day"].day: (row["daily_pnl"], row["trades"]) for _, row in month_daily.iterrows()}
 
+    first_weekday = month_start.weekday()
+    z_values, text_values, hover_text = [], [], []
+    max_abs = max(abs(month_daily["daily_pnl"]).max(), 1) if not month_daily.empty else 1
 
-# ===============================================================
-# TRADE NOTES
-# ===============================================================
-st.markdown("### 📝 Trade Notes")
-st.caption("Select a trade below and journal your thoughts on it.")
+    for week in range(6):
+        row_z, row_text, row_hover = [], [], []
+        for dow in range(7):
+            day_num = week * 7 + dow - first_weekday + 1
+            if day_num < 1 or day_num > days_in_month:
+                row_z.append(None); row_text.append(""); row_hover.append("")
+            else:
+                if day_num in pnl_map:
+                    pnl, cnt = pnl_map[day_num]
+                    row_z.append(pnl)
+                    row_text.append(f"{day_num}<br><b>${pnl:.0f}</b><br>{cnt} trades")
+                    row_hover.append(f"Day {day_num}: ${pnl:.2f} ({cnt} trades)")
+                else:
+                    row_z.append(0)
+                    row_text.append(f"{day_num}<br>—")
+                    row_hover.append(f"Day {day_num}: no trades")
+        z_values.append(row_z); text_values.append(row_text); hover_text.append(row_hover)
 
-notes_df = filtered.copy()
-notes_df["label"] = notes_df.apply(
-    lambda r: f"#{int(r['position_id'])}  ·  {r['Symbol']}  ·  {r['Exit_Time'].strftime('%b %d %H:%M')}  ·  ${r['Profit']:.2f}",
-    axis=1,
-)
-
-selected_label = st.selectbox(
-    "Select Trade",
-    notes_df["label"].tolist(),
-    key="trade_note_selector",
-)
-selected_trade = notes_df[notes_df["label"] == selected_label].iloc[0]
-
-existing_note = (selected_trade["note"] if "note" in selected_trade.index and pd.notna(selected_trade["note"]) else "") or ""
-existing_strategy = (selected_trade["strategy"] if "strategy" in selected_trade.index and pd.notna(selected_trade["strategy"]) else "") or ""
-existing_session = (selected_trade["session"] if "session" in selected_trade.index and pd.notna(selected_trade["session"]) else "") or ""
-
-SESSION_OPTIONS = ["", "Asia", "London", "New York", "London/NY Overlap", "Other"]
-session_index = SESSION_OPTIONS.index(existing_session) if existing_session in SESSION_OPTIONS else 0
-
-col_a, col_b = st.columns([2, 1])
-with col_a:
-    strategy_input = st.text_input(
-        "Strategy / Confluence",
-        value=existing_strategy,
-        placeholder="e.g. London breakout after Asian range compression",
-        key="strategy_input",
+    fig = go.Figure(data=go.Heatmap(
+        z=z_values, text=text_values, texttemplate="%{text}",
+        textfont={"size": 14, "color": theme['text']},
+        hoverinfo="text", hovertext=hover_text,
+        colorscale=[
+            [0.0, cal_colors["neg_dark"]], [0.25, cal_colors["neg_light"]],
+            [0.5, "#1a1f2e"],
+            [0.75, cal_colors["pos_light"]], [1.0, cal_colors["pos_dark"]],
+        ],
+        zmid=0, zmin=-max_abs, zmax=max_abs, showscale=True, xgap=3, ygap=3,
+    ))
+    fig.update_layout(
+        height=500,
+        xaxis=dict(tickmode="array", tickvals=list(range(7)),
+                   ticktext=["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+                   side="top", tickfont=dict(size=14, color=theme['text'])),
+        yaxis=dict(showticklabels=False, autorange="reversed"),
+        margin=dict(l=20, r=20, t=50, b=20),
+        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+        font_color="#d8dbe5",
     )
-with col_b:
-    session_input = st.selectbox(
-        "Session",
-        SESSION_OPTIONS,
-        index=session_index,
-        key="session_input",
+    st.plotly_chart(_make_transparent(fig), width='stretch')
+
+    if not month_daily.empty:
+        month_total = month_daily["daily_pnl"].sum()
+        total_trades = int(month_daily["trades"].sum())
+        green_days = int((month_daily["daily_pnl"] > 0).sum())
+        red_days = int((month_daily["daily_pnl"] < 0).sum())
+        st.caption(f"**{selected_month}** — Total: **${month_total:.2f}** | "
+                   f"Trades: **{total_trades}** | Green days: **{green_days}** | Red days: **{red_days}**")
+
+    # ===============================================================
+    # COLORED TRADE LOG
+    # ===============================================================
+with tab_trades:
+    st.markdown(f'<div class="section-title">📋 Trade Log ({len(filtered)} trades)</div>', unsafe_allow_html=True)
+
+    display_df = filtered[[
+        "Entry_Time", "Exit_Time", "Symbol", "Type",
+        "Volume", "Entry_Price", "Exit_Price", "Profit", "Hold_Time_Min"
+    ]].copy()
+
+    display_df["Entry_Time"] = display_df["Entry_Time"].dt.strftime("%Y-%m-%d %H:%M")
+    display_df["Exit_Time"] = display_df["Exit_Time"].dt.strftime("%Y-%m-%d %H:%M")
+    display_df["Hold_Time_Min"] = display_df["Hold_Time_Min"].round(1)
+
+    def style_trade_log(row):
+        pnl = row["Profit"]
+        if pnl > 0:
+            bg = "rgba(38,166,154,0.12)" if "Dark" == "Light" else "rgba(38,166,154,0.18)"
+            color = WIN_COLOR
+        elif pnl < 0:
+            bg = "rgba(239,83,80,0.12)" if "Dark" == "Light" else "rgba(239,83,80,0.18)"
+            color = LOSS_COLOR
+        else:
+            bg = theme['card_bg']; color = theme['text']
+        return [f"background-color:{bg};color:{color};font-weight:600;" if col == "Profit"
+                else f"background-color:{bg};color:{theme['text']};"
+                for col in row.index]
+
+    styled = display_df.style.apply(style_trade_log, axis=1).format({"Profit": "${:.2f}"})
+    st.dataframe(styled, width='stretch', height=420)
+
+
+    # ===============================================================
+    # TRADE NOTES
+    # ===============================================================
+with tab_journal:
+    st.markdown("### 📝 Trade Notes")
+    st.caption("Select a trade below and journal your thoughts on it.")
+
+    notes_df = filtered.copy()
+    notes_df["label"] = notes_df.apply(
+        lambda r: f"#{int(r['position_id'])}  ·  {r['Symbol']}  ·  {r['Exit_Time'].strftime('%b %d %H:%M')}  ·  ${r['Profit']:.2f}",
+        axis=1,
     )
 
-note_input = st.text_area(
-    "Notes",
-    value=existing_note,
-    placeholder="Why did you take this trade? How did you feel? What would you do differently?",
-    height=120,
-    key="note_input",
-)
-
-if st.button("💾 Save Note", type="primary"):
-    db.update_trade_notes(
-        int(selected_trade["id"]),
-        note_input,
-        strategy_input,
-        session_input,
+    selected_label = st.selectbox(
+        "Select Trade",
+        notes_df["label"].tolist(),
+        key="trade_note_selector",
     )
-    st.success("Note saved to Supabase ✅")
-    st.rerun()
+    selected_trade = notes_df[notes_df["label"] == selected_label].iloc[0]
+
+    existing_note = (selected_trade["note"] if "note" in selected_trade.index and pd.notna(selected_trade["note"]) else "") or ""
+    existing_strategy = (selected_trade["strategy"] if "strategy" in selected_trade.index and pd.notna(selected_trade["strategy"]) else "") or ""
+    existing_session = (selected_trade["session"] if "session" in selected_trade.index and pd.notna(selected_trade["session"]) else "") or ""
+
+    SESSION_OPTIONS = ["", "Asia", "London", "New York", "London/NY Overlap", "Other"]
+    session_index = SESSION_OPTIONS.index(existing_session) if existing_session in SESSION_OPTIONS else 0
+
+    col_a, col_b = st.columns([2, 1])
+    with col_a:
+        strategy_input = st.text_input(
+            "Strategy / Confluence",
+            value=existing_strategy,
+            placeholder="e.g. London breakout after Asian range compression",
+            key="strategy_input",
+        )
+    with col_b:
+        session_input = st.selectbox(
+            "Session",
+            SESSION_OPTIONS,
+            index=session_index,
+            key="session_input",
+        )
+
+    note_input = st.text_area(
+        "Notes",
+        value=existing_note,
+        placeholder="Why did you take this trade? How did you feel? What would you do differently?",
+        height=120,
+        key="note_input",
+    )
+
+    if st.button("💾 Save Note", type="primary"):
+        db.update_trade_notes(
+            int(selected_trade["id"]),
+            note_input,
+            strategy_input,
+            session_input,
+        )
+        st.success("Note saved to Supabase ✅")
+        st.rerun()
 
 
 
-# ===============================================================
-# DOWNLOAD REPORT AS CSV
-# ===============================================================
-export_cols = [
-    "Entry_Time", "Exit_Time", "Symbol", "Type", "Volume",
-    "Entry_Price", "Exit_Price", "Profit", "Hold_Time_Min",
-    "strategy", "session", "note",
-]
-available_cols = [c for c in export_cols if c in filtered.columns]
-export_df = filtered[available_cols].copy()
+    # ===============================================================
+    # DOWNLOAD REPORT AS CSV
+    # ===============================================================
+    export_cols = [
+        "Entry_Time", "Exit_Time", "Symbol", "Type", "Volume",
+        "Entry_Price", "Exit_Price", "Profit", "Hold_Time_Min",
+        "strategy", "session", "note",
+    ]
+    available_cols = [c for c in export_cols if c in filtered.columns]
+    export_df = filtered[available_cols].copy()
 
-csv_data = export_df.to_csv(index=False).encode("utf-8")
+    csv_data = export_df.to_csv(index=False).encode("utf-8")
 
-st.download_button(
-    label="⬇️ Download Report (CSV with Notes)",
-    data=csv_data,
-    file_name=f"{selected_account.replace(' ', '_')}_trades_{pd.Timestamp.now().strftime('%Y-%m-%d')}.csv",
-    mime="text/csv",
-    key="download_csv",
-)
-
-
+    st.download_button(
+        label="⬇️ Download Report (CSV with Notes)",
+        data=csv_data,
+        file_name=f"{selected_account.replace(' ', '_')}_trades_{pd.Timestamp.now().strftime('%Y-%m-%d')}.csv",
+        mime="text/csv",
+        key="download_csv",
+    )
 
 
-# ===============================================================
-# AI TRADING COACH
-# ===============================================================
-from google import genai
-
-st.markdown("---")
-st.subheader("AI Trading Coach")
-st.caption("Ask anything about your trades. The AI reads every trade and answers based on your real data.")
-
-try:
-    client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
-except Exception as e:
-    st.error(f"Could not configure AI model. Check GEMINI_API_KEY. Error: {e}")
-    st.stop()
 
 
-GEMINI_MODEL = st.secrets.get("GEMINI_MODEL", "gemini-2.5-flash")
+    # ===============================================================
+    # AI TRADING COACH
+    # ===============================================================
+    from google import genai
+
+    st.markdown("---")
+with tab_ai:
+    st.subheader("AI Trading Coach")
+    st.caption("Ask anything about your trades. The AI reads every trade and answers based on your real data.")
+
+    try:
+        client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
+    except Exception as e:
+        st.error(f"Could not configure AI model. Check GEMINI_API_KEY. Error: {e}")
+        st.stop()
 
 
-_ai_cols = [
-    "position_id", "Exit_Time", "Symbol", "Type",
-    "Profit", "Hold_Time_Min", "strategy", "session", "note"
-]
-if "account_name" in filtered.columns:
-    _ai_cols.insert(1, "account_name")
-ai_data = filtered[_ai_cols].copy()
-ai_csv = ai_data.to_csv(index=False)
-trade_count = len(ai_data)
+    GEMINI_MODEL = st.secrets.get("GEMINI_MODEL", "gemini-2.5-flash")
 
 
-if "ai_chat_history" not in st.session_state:
-    st.session_state.ai_chat_history = []
+    _ai_cols = [
+        "position_id", "Exit_Time", "Symbol", "Type",
+        "Profit", "Hold_Time_Min", "strategy", "session", "note"
+    ]
+    if "account_name" in filtered.columns:
+        _ai_cols.insert(1, "account_name")
+    ai_data = filtered[_ai_cols].copy()
+    ai_csv = ai_data.to_csv(index=False)
+    trade_count = len(ai_data)
 
 
-st.info(f"The AI is reading {trade_count} trades from {selected_account}. Ask it anything.")
+    if "ai_chat_history" not in st.session_state:
+        st.session_state.ai_chat_history = []
 
 
-for message in st.session_state.ai_chat_history:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+    st.info(f"The AI is reading {trade_count} trades from {selected_account}. Ask it anything.")
 
 
-if prompt := st.chat_input("Ask about your trading..."):
-    st.session_state.ai_chat_history.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
-
-    with st.chat_message("assistant"):
-        placeholder = st.empty()
-        placeholder.markdown("_Analyzing your trades..._")
-
-        full_prompt = f"""
-TRADER'S QUESTION:
-{prompt}
-
-TRADER'S COMPLETE TRADE HISTORY ({trade_count} trades, CSV format):
-{ai_csv}
-
-NOTE: Rows are uniquely identified by (account_name, position_id).
-The same position_id may appear in multiple accounts — those are NOT duplicates, they are different trades.
-
-INSTRUCTIONS:
-- Analyze the actual data above to answer the question.
-- Use specific numbers (win rates, P&L, averages) from the data.
-- If the question asks about patterns, look across multiple trades.
-- If notes are relevant, quote them.
-- If session or strategy columns are filled, use them.
-- Be specific and actionable. Do not be generic.
-"""
-
-        import time
-        answer = None
-        last_error = None
-        for attempt in range(2):  # initial call + 1 retry = 2 calls max
-            try:
-                _history = []
-                for _msg in st.session_state.ai_chat_history[:-1]:
-                    _history.append({
-                        "role": "user" if _msg["role"] == "user" else "model",
-                        "parts": [{"text": _msg["content"]}],
-                    })
-                _history.append({"role": "user", "parts": [{"text": full_prompt}]})
-                response = client.models.generate_content(
-                    model=GEMINI_MODEL,
-                    contents=_history,
-                )
-                answer = (response.text or "").strip() or "_(AI returned an empty response.)_"
-                break
-            except Exception as e:
-                last_error = str(e)
-                if ("503" in last_error or "UNAVAILABLE" in last_error) and attempt == 0:
-                    placeholder.markdown("_AI is warming up... retrying once in 2s_")
-                    time.sleep(2)
-                    continue
-                break
-        if not answer:
-            answer = f"AI error: {last_error}" if last_error else "AI service unavailable. Try again shortly."
-
-        placeholder.markdown(answer)
-
-    st.session_state.ai_chat_history.append({"role": "assistant", "content": answer})
+    for message in st.session_state.ai_chat_history:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
 
 
-if st.button("Clear chat"):
-    st.session_state.ai_chat_history = []
-    st.rerun()
+    if prompt := st.chat_input("Ask about your trading..."):
+        st.session_state.ai_chat_history.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
+
+        with st.chat_message("assistant"):
+            placeholder = st.empty()
+            placeholder.markdown("_Analyzing your trades..._")
+
+            full_prompt = f"""
+    TRADER'S QUESTION:
+    {prompt}
+
+    TRADER'S COMPLETE TRADE HISTORY ({trade_count} trades, CSV format):
+    {ai_csv}
+
+    NOTE: Rows are uniquely identified by (account_name, position_id).
+    The same position_id may appear in multiple accounts — those are NOT duplicates, they are different trades.
+
+    INSTRUCTIONS:
+    - Analyze the actual data above to answer the question.
+    - Use specific numbers (win rates, P&L, averages) from the data.
+    - If the question asks about patterns, look across multiple trades.
+    - If notes are relevant, quote them.
+    - If session or strategy columns are filled, use them.
+    - Be specific and actionable. Do not be generic.
+    """
+
+            import time
+            answer = None
+            last_error = None
+            for attempt in range(2):  # initial call + 1 retry = 2 calls max
+                try:
+                    _history = []
+                    for _msg in st.session_state.ai_chat_history[:-1]:
+                        _history.append({
+                            "role": "user" if _msg["role"] == "user" else "model",
+                            "parts": [{"text": _msg["content"]}],
+                        })
+                    _history.append({"role": "user", "parts": [{"text": full_prompt}]})
+                    response = client.models.generate_content(
+                        model=GEMINI_MODEL,
+                        contents=_history,
+                    )
+                    answer = (response.text or "").strip() or "_(AI returned an empty response.)_"
+                    break
+                except Exception as e:
+                    last_error = str(e)
+                    if ("503" in last_error or "UNAVAILABLE" in last_error) and attempt == 0:
+                        placeholder.markdown("_AI is warming up... retrying once in 2s_")
+                        time.sleep(2)
+                        continue
+                    break
+            if not answer:
+                answer = f"AI error: {last_error}" if last_error else "AI service unavailable. Try again shortly."
+
+            placeholder.markdown(answer)
+
+        st.session_state.ai_chat_history.append({"role": "assistant", "content": answer})
+
+
+    if st.button("Clear chat"):
+        st.session_state.ai_chat_history = []
+        st.rerun()
